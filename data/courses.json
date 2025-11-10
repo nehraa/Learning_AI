@@ -1,0 +1,66 @@
+[
+  {
+    "id": "cs50-python",
+    "title": "CS50's Introduction to Programming with Python",
+    "institution": "Harvard",
+    "url": "https://edx.org/course/cs50s-introduction-programming-python",
+    "description": "Learn Python fundamentals. Variables, functions, loops, conditionals.",
+    "level": "Beginner"
+  },
+  {
+    "id": "ibm-python",
+    "title": "IBM: Python Basics for Data Science",
+    "institution": "IBM",
+    "url": "https://edx.org/course/python-basics-data-science",
+    "description": "Python for data science. Pandas, NumPy, Matplotlib visualization.",
+    "level": "Beginner"
+  },
+  {
+    "id": "berkeley-data",
+    "title": "UC Berkeley: Foundations of Data Science",
+    "institution": "UC Berkeley",
+    "url": "https://edx.org/course/foundations-data-science",
+    "description": "Data science fundamentals. Computation, visualization, inference.",
+    "level": "Beginner"
+  },
+  {
+    "id": "mit-ml",
+    "title": "MIT: Machine Learning with Python",
+    "institution": "MIT",
+    "url": "https://edx.org/course/machine-learning-python",
+    "description": "ML algorithms and implementation. Supervised, unsupervised learning.",
+    "level": "Intermediate"
+  },
+  {
+    "id": "stanford-algo",
+    "title": "Stanford: Design of Computer Programs",
+    "institution": "Stanford",
+    "url": "https://edx.org/course/design-computer-programs",
+    "description": "Design patterns, software engineering, Python best practices.",
+    "level": "Intermediate"
+  },
+  {
+    "id": "penn-web",
+    "title": "UPenn: Web Programming with Python",
+    "institution": "UPenn",
+    "url": "https://edx.org/course/web-programming-python",
+    "description": "Web development with Python, JavaScript, Flask, Django.",
+    "level": "Intermediate"
+  },
+  {
+    "id": "berkeley-security",
+    "title": "UC Berkeley: Computer Security",
+    "institution": "UC Berkeley",
+    "url": "https://edx.org/course/computer-security",
+    "description": "Cryptography, security protocols, penetration testing.",
+    "level": "Intermediate"
+  },
+  {
+    "id": "georgia-ai",
+    "title": "Georgia Tech: Artificial Intelligence",
+    "institution": "Georgia Tech",
+    "url": "https://edx.org/course/artificial-intelligence",
+    "description": "AI algorithms, search, ML, natural language processing.",
+    "level": "Advanced"
+  }
+]

@@ -85,6 +85,9 @@ class Config:
     EMBEDDING_MODEL = "all-MiniLM-L6-v2"
     MAX_PAPERS_PER_SEARCH = 8
     MAX_COURSES_PER_SEARCH = 5
+    # When discovering papers, request a larger pool then sample to increase
+    # diversity. This avoids returning the same top-k every time.
+    DISCOVERY_POOL_SIZE = 30
 
     ALPHA = 0.25  # LinUCB confidence radius
     CONTEXT_DIM = 384
@@ -189,9 +192,18 @@ class VectorStore:
             # keep course entries; if embedding_model is available we will
             # store embeddings alongside courses for in-memory similarity.
             self.courses = []
+        # Maintain sets of ids to prevent duplicate adds (works for both
+        # in-memory fallback and when using ChromaDB client)
+        self._paper_ids = set()
+        self._course_ids = set()
 
     def add_paper(self, paper):
         try:
+            # Avoid adding duplicates
+            pid = paper.get('id')
+            if pid is not None and pid in self._paper_ids:
+                return
+
             if self.disabled:
                 # Keep a lightweight record so recommendations still work roughly
                 # If embeddings are available, store them with the paper for
@@ -204,27 +216,48 @@ class VectorStore:
                     self.papers.append(p)
                 else:
                     self.papers.append(paper)
+                # mark id
+                if pid is not None:
+                    self._paper_ids.add(pid)
                 return
 
             text = f"{paper['title']} {paper['abstract']}"
-            embedding = self.embedding_model.encode(text, convert_to_numpy=True)
+            embedding = None
+            if self.embedding_model is not None:
+                embedding = self.embedding_model.encode(text, convert_to_numpy=True)
 
-            self.papers_collection.add(
-                ids=[paper['id']],
-                embeddings=[embedding.tolist()],
-                documents=[paper['abstract']],
-                metadatas=[{
-                    'title': paper['title'],
-                    'authors': json.dumps(paper.get('authors', [])),
-                    'published': paper.get('published', ''),
-                    'type': 'paper'
-                }]
-            )
+            # When using a persistent collection, avoid duplicate ids
+            try:
+                self.papers_collection.add(
+                    ids=[paper['id']],
+                    embeddings=[(embedding.tolist() if embedding is not None else [])],
+                    documents=[paper.get('abstract','')],
+                    metadatas=[{
+                        'title': paper.get('title',''),
+                        'authors': json.dumps(paper.get('authors', [])),
+                        'published': paper.get('published', ''),
+                        'type': 'paper'
+                    }]
+                )
+            except Exception:
+                # If the collection fails to add (duplicate id or other),
+                # fall back to adding to in-memory list to keep app usable.
+                p = dict(paper)
+                if embedding is not None:
+                    p['_embedding'] = embedding
+                self.papers.append(p)
+
+            if pid is not None:
+                self._paper_ids.add(pid)
         except Exception as e:
             logger.error(f"Error adding paper: {e}")
 
     def add_course(self, course):
         try:
+            cid = course.get('id')
+            if cid is not None and cid in self._course_ids:
+                return
+
             if self.disabled:
                 # Store course and embedding (if model available) in-memory so
                 # search can leverage vector similarity even when ChromaDB is
@@ -237,22 +270,35 @@ class VectorStore:
                     self.courses.append(c)
                 else:
                     self.courses.append(course)
+                if cid is not None:
+                    self._course_ids.add(cid)
                 return
 
             text = f"{course['title']} {course['description']}"
-            embedding = self.embedding_model.encode(text, convert_to_numpy=True)
+            embedding = None
+            if self.embedding_model is not None:
+                embedding = self.embedding_model.encode(text, convert_to_numpy=True)
 
-            self.courses_collection.add(
-                ids=[course['id']],
-                embeddings=[embedding.tolist()],
-                documents=[course['description']],
-                metadatas=[{
-                    'title': course['title'],
-                    'url': course.get('url', ''),
-                    'institution': course.get('institution', ''),
-                    'type': 'course'
-                }]
-            )
+            try:
+                self.courses_collection.add(
+                    ids=[course['id']],
+                    embeddings=[(embedding.tolist() if embedding is not None else [])],
+                    documents=[course.get('description','')],
+                    metadatas=[{
+                        'title': course.get('title',''),
+                        'url': course.get('url', ''),
+                        'institution': course.get('institution', ''),
+                        'type': 'course'
+                    }]
+                )
+            except Exception:
+                c = dict(course)
+                if embedding is not None:
+                    c['_embedding'] = embedding
+                self.courses.append(c)
+
+            if cid is not None:
+                self._course_ids.add(cid)
         except Exception as e:
             logger.error(f"Error adding course: {e}")
 
@@ -554,8 +600,22 @@ class EnhancedSystem:
         all_items = []
 
         for topic in topics[:3]:
-            papers = self.paper_discovery.search_arxiv(topic, Config.MAX_PAPERS_PER_SEARCH)
-            for paper in papers:
+            # Fetch a larger pool from ArXiv, then sample to avoid repeating the
+            # exact same top items every run. Keep the top few then mix the
+            # rest randomly to retain relevance while increasing variety.
+            pool = self.paper_discovery.search_arxiv(topic, Config.DISCOVERY_POOL_SIZE)
+            papers_to_use = []
+            if pool:
+                # take up to 2 top items deterministically, then sample the rest
+                top_k = min(2, len(pool))
+                papers_to_use.extend(pool[:top_k])
+                remaining = pool[top_k:]
+                if remaining:
+                    random.shuffle(remaining)
+                    need = max(0, Config.MAX_PAPERS_PER_SEARCH - len(papers_to_use))
+                    papers_to_use.extend(remaining[:need])
+
+            for paper in papers_to_use:
                 paper['item_type'] = 'paper'
                 self.vector_store.add_paper(paper)
                 all_items.append(paper)
@@ -570,13 +630,127 @@ class EnhancedSystem:
         logger.info(f"Found {len(all_items)} items")
         return all_items
 
+    def generate_theme_bundles(self, topics, per_topic=1):
+        """Produce a list of themed bundles per topic. Each bundle contains:
+        - one paper (if available)
+        - one course (if available)
+        - one synthesized 'article' explainer created from the paper + course
+
+        This keeps recommendations diverse and grouped by theme.
+        """
+        bundles = []
+        # Use the cached items as a pool to avoid repeated discovery runs
+        pool = list(self.recommendations_cache)
+
+        for topic in topics[:5]:
+            # Find candidate papers and courses for this topic
+            papers = [p for p in pool if p.get('item_type') == 'paper' and topic.lower() in (p.get('title','')+p.get('abstract','')).lower()]
+            courses = [c for c in pool if c.get('item_type') == 'course' and topic.lower() in (c.get('title','')+c.get('description','')).lower()]
+
+            # fallback to any if none match specifically
+            if not papers:
+                papers = [p for p in pool if p.get('item_type') == 'paper']
+            if not courses:
+                courses = [c for c in pool if c.get('item_type') == 'course']
+
+            # sort papers by date (newer first)
+            try:
+                papers.sort(key=lambda p: datetime.fromisoformat(p.get('published','')), reverse=True)
+            except Exception:
+                pass
+
+            for i in range(per_topic):
+                paper = papers[i] if i < len(papers) else (papers[0] if papers else None)
+                course = courses[i] if i < len(courses) else (courses[0] if courses else None)
+
+                # Build a synthetic article that explains the paper in course context
+                article = None
+                if paper is not None:
+                    a_title = f"Explainer: {paper.get('title','')[:80]}"
+                    combined_text = (paper.get('abstract','') or '') + '\n' + (course.get('description','') or '')
+                    a_summary = self.summarizer.summarize(combined_text, max_length=220)
+                    a_keywords = self.summarizer.extract_keywords(combined_text)
+                    article = {
+                        'id': f"article-{paper.get('id','')}",
+                        'title': a_title,
+                        'type': 'article',
+                        'url': paper.get('pdf_url', ''),
+                        'summary': a_summary,
+                        'keywords': a_keywords
+                    }
+
+                bundle = {
+                    'theme': topic,
+                    'paper': {
+                        'id': paper.get('id','') if paper else '',
+                        'title': paper.get('title','') if paper else '',
+                        'url': paper.get('pdf_url','') if paper else '',
+                        'summary': self.summarizer.summarize(paper.get('abstract','')) if paper else ''
+                    } if paper else None,
+                    'course': {
+                        'id': course.get('id','') if course else '',
+                        'title': course.get('title','') if course else '',
+                        'url': course.get('url','') if course else '',
+                        'summary': self.summarizer.summarize(course.get('description','')) if course else ''
+                    } if course else None,
+                    'article': article
+                }
+
+                bundles.append(bundle)
+
+        return bundles
+
     def get_recommendations(self, num=5):
         if not self.recommendations_cache:
             return []
+        # Deduplicate by id while preserving order-ish; prefer newest papers
+        seen = set()
+        items = []
+        for item in self.recommendations_cache:
+            iid = item.get('id')
+            if iid in seen:
+                continue
+            seen.add(iid)
+            items.append(item)
 
+        # Separate papers and courses for different sorting heuristics
+        papers = [i for i in items if i.get('item_type') == 'paper']
+        courses = [i for i in items if i.get('item_type') != 'paper']
+
+        def parse_date(s):
+            try:
+                return datetime.fromisoformat(s)
+            except Exception:
+                try:
+                    return datetime.strptime(s, '%Y-%m-%dT%H:%M:%SZ')
+                except Exception:
+                    return datetime.min
+
+        # sort papers by published date descending (newer first)
+        try:
+            papers.sort(key=lambda p: parse_date(p.get('published', '')), reverse=True)
+        except Exception:
+            pass
+
+        # keep courses as-is (they have no published date), but shuffle slightly
+        if len(courses) > 1:
+            random.shuffle(courses)
+
+        merged = papers + courses
+
+        # Rotate results using user's read_count so repeated calls show different
+        # slices of the catalog instead of the exact same prefix every time.
+        offset = 0
+        try:
+            offset = int(self.user_prefs.prefs.get('read_count', 0)) % max(1, len(merged))
+        except Exception:
+            offset = 0
+
+        rotated = merged[offset:] + merged[:offset]
+
+        # Build result details for the top `num` items
         recommendations = []
-        for i in range(min(num, len(self.recommendations_cache))):
-            item = self.recommendations_cache[i]
+        for item in rotated[:num]:
             details = {
                 'id': item.get('id', ''),
                 'title': item.get('title', ''),
@@ -590,6 +764,13 @@ class EnhancedSystem:
                 )
             }
             recommendations.append(details)
+
+        # increment read_count to vary subsequent responses
+        try:
+            self.user_prefs.prefs['read_count'] = int(self.user_prefs.prefs.get('read_count', 0)) + 1
+            self.user_prefs.save()
+        except Exception:
+            pass
 
         return recommendations
 
@@ -627,9 +808,12 @@ def get_recs():
     if not topics:
         return jsonify({'error': 'Setup required'}), 400
 
+    # Run discovery to refresh the cache and then build themed bundles
     system.daily_discovery(topics)
-    recs = system.get_recommendations(5)
-    return jsonify({'recommendations': recs})
+    bundles = system.generate_theme_bundles(topics, per_topic=1)
+    # Keep a compatibility field with flat recommendations as well
+    recs = system.get_recommendations(8)
+    return jsonify({'bundles': bundles, 'recommendations': recs})
 
 @app.route('/api/rate', methods=['POST'])
 def rate():
@@ -666,4 +850,20 @@ def reload_courses():
 
 if __name__ == "__main__":
     system = EnhancedSystem()
-    app.run(debug=True, host='0.0.0.0', port=12345)
+    app.run(debug=True, host='0.0.0.0', port=12346)
+
+
+@app.route('/api/refresh-papers', methods=['POST'])
+def refresh_papers():
+    """Force a refresh of the discovery process: clear cache and run
+    daily_discovery immediately. Returns the new count of discovered items.
+    """
+    global system
+    topics = system.user_prefs.prefs.get('topics', [])
+    if not topics:
+        return jsonify({'error': 'No topics set; call /api/setup first'}), 400
+
+    # Clear old cache and run discovery
+    system.recommendations_cache = []
+    items = system.daily_discovery(topics)
+    return jsonify({'status': 'refreshed', 'count': len(items)})

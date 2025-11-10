@@ -43,8 +43,25 @@
       .content{display:flex;flex-direction:column;gap:18px}
       .controls{display:flex;gap:10px;align-items:center}
       .panel{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));border-radius:12px;padding:16px;box-shadow:0 8px 30px rgba(2,6,23,0.6)}
-      .recommendations{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
-      .rec{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:14px;border-radius:12px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.02)}
+  /* Recommendation layout: grid for flat cards, vertical list for bundles */
+  .recommendations{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+  /* When `bundles` class is applied, switch to a stacked vertical layout to avoid overlap */
+  #recommendations.bundles{display:flex;flex-direction:column;gap:14px}
+
+  .rec{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:14px;border-radius:12px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.02)}
+  /* Animations */
+  .rec{transform:translateY(0);transition:transform 320ms cubic-bezier(.2,.9,.2,1), box-shadow 220ms ease, opacity 320ms ease}
+  .rec:hover{transform:translateY(-6px);box-shadow:0 12px 30px rgba(2,6,23,0.6)}
+  .bundle{border-radius:14px;padding:12px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));transition:transform 360ms ease, opacity 360ms ease;opacity:0;transform:translateY(8px)}
+  .bundle.appear{opacity:1;transform:translateY(0)}
+  .bundle-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+    .bundle-items{display:flex;gap:10px;flex-wrap:wrap}
+    /* Each mini card will shrink on small screens and sit horizontally on large
+      screens to avoid overlap; on very small screens they stack naturally */
+    .mini{flex:1 1 28%;min-width:200px;padding:10px;border-radius:10px;background:rgba(255,255,255,0.02);min-height:80px}
+    .mini .stars{margin-top:8px}
+    .star{cursor:pointer;color:rgba(255,255,255,0.35);font-size:18px;margin-right:6px}
+    .star.on{color:#ffd166}
       .rec .title{font-weight:700;color:#fff;margin-bottom:6px}
       .rec .meta{font-size:12px;color:var(--muted);margin-bottom:10px}
       .rec .summary{font-size:13px;color:#d3deef;height:64px;overflow:hidden}
@@ -203,10 +220,19 @@
           if(force) await fetch('/api/refresh-papers',{method:'POST'});
           const res = await fetch('/api/get-recommendations');
           const data = await res.json();
-          recommendations = (data.recommendations || []).map(r=>({...r}));
-          filtered = [...recommendations];
-          el('#shownCount').textContent = filtered.length;
-          renderRecommendations();
+
+          // Prefer bundled themed view when available
+          if(data.bundles && data.bundles.length){
+            recommendations = data.bundles.map(b=>({...b}));
+            filtered = [...recommendations];
+            renderBundles();
+          }else{
+            // fallback to flat list
+            recommendations = (data.recommendations || []).map(r=>({...r}));
+            filtered = [...recommendations];
+            renderRecommendations();
+          }
+
           updateChart();
           // update rated count/status
           const st = await fetch('/api/status'); const sdata = await st.json(); el('#ratedCount').textContent = sdata.items_rated||0;
@@ -214,7 +240,7 @@
       }
 
       function renderRecommendations(){
-        const box = el('#recommendations'); box.innerHTML='';
+        const box = el('#recommendations'); box.classList.remove('bundles'); box.innerHTML='';
         filtered.forEach(rec=>{
           const div = document.createElement('div'); div.className='rec';
           const kw = (rec.keywords||[]).map(k=>`<span class="badge">${htmlEscape(k)}</span>`).join(' ');
@@ -244,6 +270,89 @@
       }
 
       function shuffleArray(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+      // Send a rating to the backend for a given item id
+      async function postRating(itemId, rating){
+        if(!itemId) return;
+        try{
+          await fetch('/api/rate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({item_id:itemId,rating:rating})});
+        }catch(e){console.warn('rating failed',e)}
+      }
+
+      // Render bundles: each bundle is a theme with up to paper, course, article
+      function renderBundles(){
+        const box = el('#recommendations'); box.innerHTML='';
+        // mark container as bundles to switch layout rules
+        box.classList.add('bundles');
+        recommendations.forEach((b, idx)=>{
+          const div = document.createElement('div'); div.className='bundle panel';
+          const paper = b.paper || null; const course = b.course || null; const article = b.article || null;
+
+          // Initially collapsed content; clicking header toggles
+          div.innerHTML = `
+            <div class="bundle-head" style="cursor:pointer">
+              <div><strong>${htmlEscape(b.theme)}</strong> <span class="muted small">theme</span></div>
+              <div class="muted small">Bundle ${idx+1} • <span class="muted">click to expand</span></div>
+            </div>
+            <div class="bundle-content" style="display:none">
+              <div class="bundle-items">
+                <div class="mini" data-type="paper" data-id="${htmlEscape((paper && paper.id) || '')}">
+                  <div style="font-weight:700">Paper</div>
+                  <div style="font-size:13px;margin-top:6px">${htmlEscape((paper && paper.title) || '—')}</div>
+                  <div style="margin-top:8px;font-size:12px;color:var(--muted)">${htmlEscape((paper && paper.summary) || '')}</div>
+                  <div class="stars" data-id="${htmlEscape((paper && paper.id) || '')}"></div>
+                  <a class="link" href="${htmlEscape((paper && paper.url) || '#')}" target="_blank" style="display:inline-block;margin-top:8px">Read</a>
+                </div>
+                <div class="mini" data-type="course" data-id="${htmlEscape((course && course.id) || '')}">
+                  <div style="font-weight:700">Course</div>
+                  <div style="font-size:13px;margin-top:6px">${htmlEscape((course && course.title) || '—')}</div>
+                  <div style="margin-top:8px;font-size:12px;color:var(--muted)">${htmlEscape((course && course.summary) || '')}</div>
+                  <div class="stars" data-id="${htmlEscape((course && course.id) || '')}"></div>
+                  <a class="link" href="${htmlEscape((course && course.url) || '#')}" target="_blank" style="display:inline-block;margin-top:8px">Open</a>
+                </div>
+                <div class="mini" data-type="article" data-id="${htmlEscape((article && article.id) || '')}">
+                  <div style="font-weight:700">Article</div>
+                  <div style="font-size:13px;margin-top:6px">${htmlEscape((article && article.title) || '—')}</div>
+                  <div style="margin-top:8px;font-size:12px;color:var(--muted)">${htmlEscape((article && article.summary) || '')}</div>
+                  <div class="stars" data-id="${htmlEscape((article && article.id) || '')}"></div>
+                  <a class="link" href="${htmlEscape((article && article.url) || '#')}" target="_blank" style="display:inline-block;margin-top:8px">Read</a>
+                </div>
+              </div>
+            </div>
+          `;
+
+          // Toggle expand/collapse on header click
+          const head = div.querySelector('.bundle-head');
+          const content = div.querySelector('.bundle-content');
+          head.addEventListener('click', ()=>{
+            const open = content.style.display !== 'none';
+            content.style.display = open ? 'none' : 'block';
+          });
+
+          // initialize star widgets
+          const starContainers = div.querySelectorAll('.stars');
+          starContainers.forEach(sc=>{
+            const iid = sc.getAttribute('data-id');
+            sc.innerHTML = '';
+            for(let s=1;s<=5;s++){
+              const span = document.createElement('span'); span.className='star'; span.innerHTML='★'; span.title = s + ' star';
+              span.addEventListener('click', async (e)=>{
+                e.stopPropagation();
+                await postRating(iid, s);
+                // visual feedback
+                const siblings = sc.querySelectorAll('.star');
+                siblings.forEach((el, idx)=> el.classList.toggle('on', idx < s));
+              });
+              sc.appendChild(span);
+            }
+          });
+
+          box.appendChild(div);
+          // Stagger appearance for a simple animation
+          setTimeout(()=> div.classList.add('appear'), 80 * idx);
+        });
+        el('#shownCount').textContent = recommendations.length;
+      }
 
       // Chart for topic breakdown (dummy uses keywords count)
       let topicChart=null;

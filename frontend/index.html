@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Learning Curation — Dashboard (Frontend)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/frontend/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  </head>
+  <body>
+    <div class="app">
+      <div>
+        <div class="brand">
+          <div class="logo">LC</div>
+          <div>
+            <h1>Learning Curation</h1>
+            <div class="subtitle">Personalized papers & course recommendations</div>
+          </div>
+        </div>
+
+        <div class="sidebar panel">
+          <div class="card-head">
+            <strong>Setup</strong>
+            <small class="muted">configure topics & controls</small>
+          </div>
+          <label for="topicsInput">Topics (one per line)</label>
+          <textarea id="topicsInput" placeholder="e.g. machine learning\nneuroscience"></textarea>
+          <div style="height:10px"></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn" id="initBtn">Initialize</button>
+            <button class="btn ghost small" id="refreshBtn">🔄 Refresh</button>
+          </div>
+
+          <div style="height:12px"></div>
+          <div class="small muted">Controls</div>
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+            <label class="muted small">Pool Size</label>
+            <input id="poolSize" type="range" min="8" max="80" value="30" style="flex:1">
+            <span id="poolVal" class="muted small">30</span>
+          </div>
+
+          <div style="height:12px"></div>
+          <div class="small muted">Tracked topics</div>
+          <div id="topicsList" class="topics-list"></div>
+
+          <div style="height:12px"></div>
+          <div class="small muted">Quick actions</div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn ghost small" id="reloadCourses">Reload Courses</button>
+            <button class="btn ghost small" id="clearPrefs">Clear</button>
+          </div>
+
+          <div style="height:12px"></div>
+          <div class="small muted">Your stats</div>
+          <div style="display:flex;gap:8px;margin-top:8px;flex-direction:column">
+            <div class="stat"><h3 id="topicsCount">0</h3><div class="muted small">Topics</div></div>
+            <div class="stat"><h3 id="ratedCount">0</h3><div class="muted small">Items rated</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="controls panel">
+          <div style="display:flex;align-items:center;gap:12px">
+            <input id="searchInput" placeholder="Search results..." style="padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.03);color:inherit;flex:1">
+            <button class="btn ghost small" id="shuffleBtn">Shuffle</button>
+            <button class="btn" id="openFetchBtn">Get Recommendations</button>
+          </div>
+        </div>
+
+        <div class="panel" id="mainPanel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <strong style="font-size:16px">Recommendations</strong>
+            <div class="stats">
+              <div class="muted small">Showing <span id="shownCount">0</span></div>
+              <div style="width:180px"><canvas id="topicChart" height="40"></canvas></div>
+            </div>
+          </div>
+
+          <div id="recommendations" class="recommendations"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="modal" aria-hidden>
+      <div class="modal-card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h2 id="modalTitle">Title</h2>
+          <div><button class="btn ghost small" id="modalClose">Close</button></div>
+        </div>
+        <div class="muted" id="modalMeta">meta</div>
+        <p id="modalSummary" style="margin-top:12px;color:#d5e6ff"></p>
+        <div style="height:12px"></div>
+        <div id="modalKeywords" class="keywords"></div>
+        <div style="height:14px"></div>
+        <a id="modalLink" class="btn" target="_blank">Open</a>
+      </div>
+    </div>
+
+    <script src="/frontend/app.js"></script>
+  </body>
+</html>

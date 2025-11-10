@@ -1,0 +1,13 @@
+# Core Dependencies
+flask==3.0.0
+arxiv==2.1.0
+chromadb==0.5.23
+sentence-transformers==3.3.1
+numpy==1.26.4
+
+# Additional utilities
+requests==2.31.0
+python-dateutil==2.9.0.post0
+
+# Optional: For scheduling
+schedule==1.2.2
