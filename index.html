@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Learning Curation — Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+      :root{
+        --bg-1: #0f172a;
+        --card: rgba(255,255,255,0.05);
+        --accent: linear-gradient(135deg,#667eea 0%, #764ba2 100%);
+        --glass: rgba(255,255,255,0.06);
+        --muted: #9aa4bf;
+      }
+      html,body{height:100%;}
+      body{
+        margin:0;padding:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:radial-gradient(circle at 10% 10%, rgba(118,75,162,0.12), transparent 20%), radial-gradient(circle at 90% 90%, rgba(102,126,234,0.12), transparent 20%), linear-gradient(180deg,#071230 0%, #071a2f 100%);color:#e6eef8;min-height:100vh;
+        -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+      }
+      .app{
+        max-width:1200px;margin:32px auto;padding:28px;
+        display:grid;grid-template-columns:320px 1fr;gap:24px;align-items:start;
+      }
+      .brand{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+      .logo{width:56px;height:56px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;font-weight:800;box-shadow:0 6px 24px rgba(102,126,234,0.2)}
+      h1{font-size:20px;margin:0}
+      .subtitle{color:var(--muted);font-size:13px}
+
+      /* Sidebar */
+      .sidebar{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:14px;padding:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.02), 0 8px 30px rgba(2,6,23,0.6)}
+      .card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+      label{display:block;margin-bottom:8px;color:var(--muted);font-size:13px}
+      textarea,input{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;font-size:14px}
+      .btn{display:inline-flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:var(--accent);color:white;border:none;cursor:pointer;font-weight:600}
+      .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)}
+      .small{font-size:13px;padding:8px 10px}
+      .topics-list{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+      .chip{background:var(--glass);padding:6px 10px;border-radius:999px;color:var(--muted);font-size:13px}
+
+      /* Content */
+      .content{display:flex;flex-direction:column;gap:18px}
+      .controls{display:flex;gap:10px;align-items:center}
+      .panel{background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));border-radius:12px;padding:16px;box-shadow:0 8px 30px rgba(2,6,23,0.6)}
+      .recommendations{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+      .rec{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:14px;border-radius:12px;position:relative;overflow:hidden;border:1px solid rgba(255,255,255,0.02)}
+      .rec .title{font-weight:700;color:#fff;margin-bottom:6px}
+      .rec .meta{font-size:12px;color:var(--muted);margin-bottom:10px}
+      .rec .summary{font-size:13px;color:#d3deef;height:64px;overflow:hidden}
+      .badge{display:inline-block;padding:6px 10px;border-radius:10px;font-size:12px;background:rgba(255,255,255,0.03);color:var(--muted)}
+      .rec .actions{display:flex;gap:8px;margin-top:10px;align-items:center}
+      .rec .star{cursor:pointer;color:#ffd166;font-size:18px}
+      .rec .link{margin-left:auto;background:rgba(255,255,255,0.03);border-radius:8px;padding:8px 10px;color:#e6eef8;text-decoration:none}
+
+      /* Modal */
+      .modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:linear-gradient(rgba(2,6,23,0.6), rgba(2,6,23,0.8));z-index:50}
+      .modal.open{display:flex}
+      .modal-card{width:min(900px,96%);background:#071227;padding:22px;border-radius:12px;border:1px solid rgba(255,255,255,0.03)}
+      .modal h2{margin-top:0}
+      .modal .keywords{display:flex;gap:8px;flex-wrap:wrap}
+
+      /* footer stats */
+      .stats{display:flex;gap:14px;align-items:center}
+      .stat{background:transparent;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);min-width:120px;text-align:center}
+      .stat h3{margin:0;color:#9cc0ff}
+      .muted{color:var(--muted)}
+
+      @media(max-width:980px){.app{grid-template-columns:1fr;}.brand{margin-bottom:8px}}
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div>
+        <div class="brand">
+          <div class="logo">LC</div>
+          <div>
+            <h1>Learning Curation</h1>
+            <div class="subtitle">Personalized papers & course recommendations</div>
+          </div>
+        </div>
+
+        <div class="sidebar panel">
+          <div class="card-head">
+            <strong>Setup</strong>
+            <small class="muted">configure topics & controls</small>
+          </div>
+          <label for="topicsInput">Topics (one per line)</label>
+          <textarea id="topicsInput" placeholder="e.g. machine learning\nneuroscience"></textarea>
+          <div style="height:10px"></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn" id="initBtn">Initialize</button>
+            <button class="btn ghost small" id="refreshBtn">🔄 Refresh</button>
+          </div>
+
+          <div style="height:12px"></div>
+          <div class="small muted">Controls</div>
+          <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+            <label class="muted small">Pool Size</label>
+            <input id="poolSize" type="range" min="8" max="80" value="30" style="flex:1">
+            <span id="poolVal" class="muted small">30</span>
+          </div>
+
+          <div style="height:12px"></div>
+          <div class="small muted">Tracked topics</div>
+          <div id="topicsList" class="topics-list"></div>
+
+          <div style="height:12px"></div>
+          <div class="small muted">Quick actions</div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn ghost small" id="reloadCourses">Reload Courses</button>
+            <button class="btn ghost small" id="clearPrefs">Clear</button>
+          </div>
+
+          <div style="height:12px"></div>
+          <div class="small muted">Your stats</div>
+          <div style="display:flex;gap:8px;margin-top:8px;flex-direction:column">
+            <div class="stat"><h3 id="topicsCount">0</h3><div class="muted small">Topics</div></div>
+            <div class="stat"><h3 id="ratedCount">0</h3><div class="muted small">Items rated</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="controls panel">
+          <div style="display:flex;align-items:center;gap:12px">
+            <input id="searchInput" placeholder="Search results..." style="padding:8px;border-radius:8px;background:transparent;border:1px solid rgba(255,255,255,0.03);color:inherit;flex:1">
+            <button class="btn ghost small" id="shuffleBtn">Shuffle</button>
+            <button class="btn" id="openFetchBtn">Get Recommendations</button>
+          </div>
+        </div>
+
+        <div class="panel" id="mainPanel">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+            <strong style="font-size:16px">Recommendations</strong>
+            <div class="stats">
+              <div class="muted small">Showing <span id="shownCount">0</span></div>
+              <div style="width:180px"><canvas id="topicChart" height="40"></canvas></div>
+            </div>
+          </div>
+
+          <div id="recommendations" class="recommendations"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="modal" aria-hidden>
+      <div class="modal-card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <h2 id="modalTitle">Title</h2>
+          <div><button class="btn ghost small" id="modalClose">Close</button></div>
+        </div>
+        <div class="muted" id="modalMeta">meta</div>
+        <p id="modalSummary" style="margin-top:12px;color:#d5e6ff"></p>
+        <div style="height:12px"></div>
+        <div id="modalKeywords" class="keywords"></div>
+        <div style="height:14px"></div>
+        <a id="modalLink" class="btn" target="_blank">Open</a>
+      </div>
+    </div>
+
+    <script>
+      // Small helper utilities
+      function el(q){return document.querySelector(q)}
+      function htmlEscape(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+
+      // State
+      let recommendations = [];
+      let filtered = [];
+
+      // Init UI bits
+      const poolSize = el('#poolSize'); const poolVal = el('#poolVal'); poolVal.textContent = poolSize.value;
+      poolSize.oninput = ()=> poolVal.textContent = poolSize.value;
+
+      el('#initBtn').addEventListener('click', async ()=>{
+        const raw = el('#topicsInput').value.trim();
+        if(!raw){alert('Please enter topics');return}
+        const topics = raw.split('\n').map(s=>s.trim()).filter(Boolean);
+        await fetch('/api/setup',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({topics})});
+        el('#topicsList').innerHTML = topics.map(t=>`<div class="chip">${htmlEscape(t)}</div>`).join('');
+        el('#topicsCount').textContent = topics.length;
+        await refreshRecommendations();
+      });
+
+      el('#refreshBtn').addEventListener('click', async ()=>{ await refreshRecommendations(true); });
+      el('#reloadCourses').addEventListener('click', async ()=>{ const r=await fetch('/api/reload-courses',{method:'POST'}); alert('Reloaded courses'); });
+      el('#clearPrefs').addEventListener('click', ()=>{ el('#topicsInput').value=''; el('#topicsList').innerHTML=''; el('#topicsCount').textContent='0'; });
+      el('#openFetchBtn').addEventListener('click', ()=> refreshRecommendations(true));
+      el('#shuffleBtn').addEventListener('click', ()=>{ filtered = shuffleArray(filtered); renderRecommendations(); });
+
+      el('#searchInput').addEventListener('input', (e)=>{
+        const q = e.target.value.toLowerCase();
+        filtered = recommendations.filter(r=> (r.title||'').toLowerCase().includes(q) || (r.summary||'').toLowerCase().includes(q) || (r.keywords||[]).join(' ').toLowerCase().includes(q));
+        renderRecommendations();
+      });
+
+      // Modal
+      el('#modalClose').addEventListener('click', ()=> el('#modal').classList.remove('open'));
+
+      async function refreshRecommendations(force=false){
+        try{
+          if(force) await fetch('/api/refresh-papers',{method:'POST'});
+          const res = await fetch('/api/get-recommendations');
+          const data = await res.json();
+          recommendations = (data.recommendations || []).map(r=>({...r}));
+          filtered = [...recommendations];
+          el('#shownCount').textContent = filtered.length;
+          renderRecommendations();
+          updateChart();
+          // update rated count/status
+          const st = await fetch('/api/status'); const sdata = await st.json(); el('#ratedCount').textContent = sdata.items_rated||0;
+        }catch(err){console.error(err);alert('Failed to fetch recommendations')}
+      }
+
+      function renderRecommendations(){
+        const box = el('#recommendations'); box.innerHTML='';
+        filtered.forEach(rec=>{
+          const div = document.createElement('div'); div.className='rec';
+          const kw = (rec.keywords||[]).map(k=>`<span class="badge">${htmlEscape(k)}</span>`).join(' ');
+          div.innerHTML = `
+            <div class="title">${htmlEscape(rec.title)}</div>
+            <div class="meta">${htmlEscape(rec.type.toUpperCase())} • ${htmlEscape(rec.url||'')}</div>
+            <div class="summary">${htmlEscape(rec.summary||'')}</div>
+            <div class="actions">
+              <div class="badges">${kw}</div>
+              <a class="link" href="#" data-id="${htmlEscape(rec.id)}">Open</a>
+            </div>
+          `;
+
+          div.querySelector('.link').addEventListener('click',(e)=>{e.preventDefault(); openModal(rec)});
+          box.appendChild(div);
+        });
+        el('#shownCount').textContent = filtered.length;
+      }
+
+      function openModal(rec){
+        el('#modalTitle').textContent = rec.title||'';
+        el('#modalMeta').textContent = (rec.type||'') + ' • ' + (rec.url||'');
+        el('#modalSummary').textContent = rec.summary||'';
+        el('#modalKeywords').innerHTML = (rec.keywords||[]).map(k=>`<span class="chip">${htmlEscape(k)}</span>`).join(' ');
+        el('#modalLink').href = rec.url || '#';
+        el('#modal').classList.add('open');
+      }
+
+      function shuffleArray(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+      // Chart for topic breakdown (dummy uses keywords count)
+      let topicChart=null;
+      function updateChart(){
+        try{
+          const counts = {};
+          recommendations.forEach(r=>{(r.keywords||[]).slice(0,3).forEach(k=>{counts[k]=(counts[k]||0)+1})});
+          const labels = Object.keys(counts).slice(0,6);
+          const data = labels.map(l=>counts[l]);
+          const ctx = document.getElementById('topicChart').getContext('2d');
+          if(topicChart) topicChart.destroy();
+          topicChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{ label: 'Keyword hits', data: data, backgroundColor: 'rgba(102,126,234,0.7)' }]
+            },
+            options: {
+              plugins: { legend: { display: false } },
+              scales: { x: { grid: { display: false }, ticks: { color: '#aab9d9' } }, y: { display: false } }
+            }
+          });
+        }catch(e){console.warn('chart',e)}
+      }
+
+      // On load, try to reflect existing status
+      (async ()=>{
+        try{
+          const st = await fetch('/api/status'); const sdata = await st.json();
+          if(sdata.topics && sdata.topics.length){ el('#topicsList').innerHTML = sdata.topics.map(t=>`<div class="chip">${htmlEscape(t)}</div>`).join(''); el('#topicsCount').textContent = sdata.topics.length; await refreshRecommendations(); }
+        }catch(e){console.log('status check failed')}
+      })();
+    </script>
+  </body>
+</html>
