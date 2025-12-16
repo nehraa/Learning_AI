@@ -201,22 +201,28 @@ class PlanGeneratorAI:
         # Advanced topics (16-26 weeks)
         advanced_topics = ["machine learning", "algorithms", "system design", "quantum"]
         if any(adv in topic_lower for adv in advanced_topics):
-            return 20  # 5 months
+            base_weeks = 20  # 5 months
+            # Adjust for learning speed
+            current_knowledge = context.get("current_knowledge", "beginner")
+            if current_knowledge in ["intermediate", "advanced"]:
+                return int(base_weeks * 0.7)  # 14 weeks for experienced
+            return base_weeks
         
         # Very advanced (26-40 weeks)
         expert_topics = ["quantum mechanics", "category theory", "advanced mathematics", 
                         "compiler design", "distributed systems"]
         if any(exp in topic_lower for exp in expert_topics):
-            return 32  # 8 months
-        
-        # Adjust for learning speed
-        current_knowledge = context.get("current_knowledge", "beginner")
-        if current_knowledge in ["intermediate", "advanced"]:
-            # Reduce duration by 30% for experienced learners
-            base_weeks = 16
-            return int(base_weeks * 0.7)
+            base_weeks = 32  # 8 months
+            # Adjust for learning speed
+            current_knowledge = context.get("current_knowledge", "beginner")
+            if current_knowledge in ["intermediate", "advanced"]:
+                return int(base_weeks * 0.7)  # 22 weeks for experienced
+            return base_weeks
         
         # Default: moderate duration
+        current_knowledge = context.get("current_knowledge", "beginner")
+        if current_knowledge in ["intermediate", "advanced"]:
+            return 8  # Experienced learner, unknown topic
         return 12  # 3 months for average topic
     
     def _estimate_complexity(self, topic: str) -> str:
