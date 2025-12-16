@@ -8,11 +8,26 @@ This system watches what you read/watch and auto-generates:
 - Connection to other topics you've learned
 """
 
-from anthropic import Anthropic
+try:
+    from anthropic import Anthropic
+    HAS_ANTHROPIC = True
+except ImportError:
+    HAS_ANTHROPIC = False
+
 from typing import List, Dict
-import fitz  # PyMuPDF for PDF extraction
-from youtube_transcript_api import YouTubeTranscriptApi
 import re
+
+try:
+    import fitz  # PyMuPDF for PDF extraction
+    HAS_PYMUPDF = True
+except ImportError:
+    HAS_PYMUPDF = False
+
+try:
+    from youtube_transcript_api import YouTubeTranscriptApi
+    HAS_YOUTUBE_API = True
+except ImportError:
+    HAS_YOUTUBE_API = False
 
 class ContentDigestAI:
     """
@@ -25,8 +40,12 @@ class ContentDigestAI:
     - Code repositories (via README + code analysis)
     """
     
-    def __init__(self, anthropic_api_key: str, db_connection):
-        self.client = Anthropic(api_key=anthropic_api_key)
+    def __init__(self, anthropic_api_key: str = None, db_connection=None):
+        self.has_anthropic = HAS_ANTHROPIC and anthropic_api_key is not None
+        if self.has_anthropic:
+            self.client = Anthropic(api_key=anthropic_api_key)
+        else:
+            self.client = None
         self.db = db_connection
         
     def process_content(
