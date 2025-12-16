@@ -1,6 +1,6 @@
 """
 Plan Generator AI - Generates 52-week learning plans
-Can use Anthropic Claude API or fall back to template-based generation
+Uses Ollama (local LLM) or Perplexity API, with template fallback
 """
 
 import json
@@ -9,6 +9,11 @@ import uuid
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import logging
+import sys
+from pathlib import Path
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 logger = logging.getLogger(__name__)
 
@@ -16,29 +21,47 @@ logger = logging.getLogger(__name__)
 class PlanGeneratorAI:
     """
     Generates comprehensive learning plans from topics
-    Uses Claude API if available, otherwise template-based
+    Priority: Ollama (local) > Perplexity > Template-based
     """
     
-    def __init__(self, anthropic_key: Optional[str] = None):
+    def __init__(self, ollama_model: Optional[str] = None, 
+                 perplexity_key: Optional[str] = None):
         """
         Initialize plan generator
         
         Args:
-            anthropic_key: Optional Anthropic API key for Claude
+            ollama_model: Ollama model name (e.g., 'llama3.2:3b')
+            perplexity_key: Perplexity API key (fallback if Ollama unavailable)
         """
-        self.anthropic_key = anthropic_key or os.environ.get('ANTHROPIC_API_KEY')
-        self.has_anthropic = self.anthropic_key is not None
+        self.ai_client = None
+        self.ai_mode = 'template'  # Default to template
         
-        if self.has_anthropic:
+        # Try Ollama first (local, preferred)
+        try:
+            from rfai.integrations.ollama_client import OllamaClient
+            ollama = OllamaClient(model=ollama_model)
+            if ollama.available:
+                self.ai_client = ollama
+                self.ai_mode = 'ollama'
+                logger.info("Using Ollama for plan generation (local)")
+        except Exception as e:
+            logger.debug(f"Ollama not available: {e}")
+        
+        # Try Perplexity as fallback
+        if not self.ai_client:
             try:
-                from anthropic import Anthropic
-                self.client = Anthropic(api_key=self.anthropic_key)
-                logger.info("Anthropic API initialized")
-            except ImportError:
-                logger.warning("anthropic package not installed, using template-based generation")
-                self.has_anthropic = False
-        else:
-            logger.info("No Anthropic API key, using template-based generation")
+                from rfai.integrations.perplexity_api import PerplexitySearch
+                perplexity = PerplexitySearch(api_key=perplexity_key)
+                if perplexity.api_key:
+                    self.ai_client = perplexity
+                    self.ai_mode = 'perplexity'
+                    logger.info("Using Perplexity for plan generation")
+            except Exception as e:
+                logger.debug(f"Perplexity not available: {e}")
+        
+        # Fallback to template
+        if not self.ai_client:
+            logger.info("No AI available, using template-based generation")
     
     def generate_plan(
         self,
@@ -68,103 +91,49 @@ class PlanGeneratorAI:
         
         logger.info(f"Generating plan for topic: {topic}")
         logger.info(f"Context: {context}")
+        logger.info(f"AI mode: {self.ai_mode}")
         
-        if self.has_anthropic:
-            return self._generate_with_claude(topic, context)
+        if self.ai_mode == 'ollama':
+            return self._generate_with_ollama(topic, context)
+        elif self.ai_mode == 'perplexity':
+            return self._generate_with_perplexity(topic, context)
         else:
             return self._generate_template_based(topic, context)
     
-    def _generate_with_claude(self, topic: str, context: Dict) -> Dict:
-        """Generate plan using Claude API"""
-        prompt = self._build_claude_prompt(topic, context)
-        
+    def _generate_with_ollama(self, topic: str, context: Dict) -> Dict:
+        """Generate plan using Ollama (local LLM)"""
         try:
-            response = self.client.messages.create(
-                model="claude-sonnet-4-20250514",
-                max_tokens=15000,
-                messages=[{"role": "user", "content": prompt}]
-            )
-            
-            # Parse response
-            plan_json = json.loads(response.content[0].text)
-            logger.info(f"Generated plan with {len(plan_json.get('weeks', []))} weeks")
-            return plan_json
-            
+            plan = self.ai_client.generate_plan(topic, context)
+            logger.info(f"Generated plan with {len(plan.get('weeks', []))} weeks using Ollama")
+            return plan
         except Exception as e:
-            logger.error(f"Error generating with Claude: {e}")
+            logger.error(f"Error generating with Ollama: {e}")
             logger.info("Falling back to template-based generation")
             return self._generate_template_based(topic, context)
     
-    def _build_claude_prompt(self, topic: str, context: Dict) -> str:
-        """Build prompt for Claude"""
-        return f"""You are an expert curriculum designer. Generate a personalized learning plan.
-
-TOPIC: {topic}
-USER CONTEXT:
-- Available time: {context['time_available']}
-- Timeline: {context['timeline']}
-- Learning style: {context['learning_style']}
-- Current knowledge: {context['current_knowledge']}
-
-OUTPUT FORMAT (strict JSON):
-{{
-  "plan_id": "uuid",
-  "topic": "{topic}",
-  "estimated_duration_weeks": 26,
-  "daily_time_hours": 3,
-  "weeks": [
-    {{
-      "week_number": 1,
-      "theme": "Foundations of {topic}",
-      "days": [
-        {{
-          "day_number": 1,
-          "date_relative": "Week 1, Monday",
-          "micro_topic": "Introduction to {topic}",
-          "learning_objectives": ["obj1", "obj2"],
-          "time_breakdown": {{
-            "00:00-00:45": "Watch intro video",
-            "00:45-01:45": "Read chapter 1",
-            "01:45-02:30": "Practice problems",
-            "02:30-03:00": "Mini-quiz"
-          }},
-          "resources": [
-            {{
-              "type": "video",
-              "title": "...",
-              "url": "...",
-              "duration_minutes": 45,
-              "difficulty": "beginner"
-            }}
-          ],
-          "mini_quiz": [
-            {{"question": "...", "answer": "...", "difficulty": "easy"}}
-          ],
-          "prerequisites": [],
-          "estimated_difficulty": 3
-        }}
-      ],
-      "weekly_quiz": [...],
-      "capstone_project": "Build something practical"
-    }}
-  ],
-  "milestones": [
-    {{"week": 4, "achievement": "Complete foundations"}},
-    {{"week": 12, "achievement": "Intermediate proficiency"}}
-  ]
-}}
-
-REQUIREMENTS:
-1. Each day must have exactly 3 hours of structured activities
-2. Include mini-quizzes every day (3-5 questions)
-3. Weekly comprehensive quizzes on Sundays (day 7)
-4. Mix content types (videos, papers, tutorials, practice)
-5. Build logical prerequisite chains
-6. Include difficulty estimates
-7. Generate at least 4 weeks, up to 26 weeks
-
-Generate the complete plan now as valid JSON.
-"""
+    def _generate_with_perplexity(self, topic: str, context: Dict) -> Dict:
+        """Generate plan using Perplexity API"""
+        try:
+            # Use Perplexity to get learning path
+            learning_path = self.ai_client.suggest_learning_path(
+                topic,
+                current_level=context.get('current_knowledge', 'beginner'),
+                time_available=context.get('time_available', '3 hours/day')
+            )
+            
+            # Parse into structured plan
+            # For now, use template and enhance with Perplexity insights
+            plan = self._generate_template_based(topic, context)
+            
+            # Add AI insights to first week
+            if learning_path and len(plan['weeks']) > 0:
+                plan['weeks'][0]['ai_insights'] = learning_path[:500]
+            
+            logger.info(f"Generated plan with Perplexity insights")
+            return plan
+        except Exception as e:
+            logger.error(f"Error generating with Perplexity: {e}")
+            return self._generate_template_based(topic, context)
     
     def _generate_template_based(self, topic: str, context: Dict) -> Dict:
         """Generate plan using templates (fallback when no API)"""

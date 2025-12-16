@@ -5,6 +5,7 @@ arxiv==2.1.0
 chromadb==0.5.23
 sentence-transformers==3.3.1
 numpy==1.26.4
+pandas>=2.0.0
 
 # Additional utilities
 requests==2.31.0
@@ -16,8 +17,17 @@ schedule==1.2.2
 # Machine Learning
 scikit-learn>=1.3.0
 
-# Optional: AI APIs (comment out if not needed)
-# anthropic>=0.8.0  # For Claude AI plan generation
+# Multi-source Content Discovery
+# All integrations are optional - system works without them
+# Ollama: Local LLM (preferred, no API key needed)
+#   Install: https://ollama.ai
+#   Usage: ollama serve && ollama pull llama3.2:3b
+
+# API Keys (optional, set as environment variables)
+# YouTube: YOUTUBE_API_KEY - get from Google Cloud Console
+# Perplexity: PERPLEXITY_API_KEY - get from perplexity.ai/settings/api  
+# OMDb (IMDB): OMDB_API_KEY - get from omdbapi.com/apikey.aspx
+# Notion: NOTION_API_KEY + NOTION_DATABASE_ID - get from notion.so/my-integrations
 
 # Optional: System monitoring (for better focus detection)
 # psutil>=5.9.0  # CPU monitoring
