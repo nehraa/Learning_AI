@@ -4,7 +4,7 @@ Intelligent Schedule Optimizer - ML-powered optimal time slot finder
 
 import numpy as np
 from datetime import time, datetime, timedelta
-from typing import Dict, List, Tuple
+from typing import Dict, List
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 import pandas as pd

@@ -15,7 +15,7 @@ GOAL: Maximize [knowledge retention × completion rate × satisfaction]
 
 import numpy as np
 from datetime import datetime, timedelta
-from typing import Dict, List, Tuple
+from typing import Dict, Tuple
 from collections import deque
 import pickle
 
@@ -396,33 +396,93 @@ class PaceLearnerRL:
     
     def _add_rest_days(self):
         """Insert rest days into timetable every 5 days."""
-        # Implementation: modify timetable to add "Rest" slots
-        pass
+        from datetime import date, timedelta
+        
+        # Insert rest slots for next 4 weeks (every 5 days)
+        today = date.today()
+        for i in range(5, 29, 5):
+            rest_date = today + timedelta(days=i)
+            
+            # Check if rest already exists
+            check_query = """
+                SELECT COUNT(*) FROM timetable_slots
+                WHERE date(start_time) = ? AND activity_type = 'Rest'
+            """
+            result = self.db.execute(check_query, (rest_date.isoformat(),)).fetchone()
+            
+            if result[0] == 0:
+                # Insert rest day
+                insert_query = """
+                    INSERT INTO timetable_slots (start_time, duration_seconds, activity_type, description)
+                    VALUES (?, ?, ?, ?)
+                """
+                self.db.execute(insert_query, (
+                    f"{rest_date} 00:00:00",
+                    0,  # Rest day (no duration)
+                    'Rest',
+                    'Scheduled rest day by RL agent'
+                ))
+        
+        self.db.commit()
     
     def _adjust_content_difficulty(self, direction: str):
         """Change difficulty level of recommended content."""
-        # Implementation: update content recommendation weights
-        pass
+        # Update content preferences in system config
+        try:
+            if direction == 'easier':
+                # Prefer beginner/intermediate content
+                self.db.execute("""
+                    INSERT OR REPLACE INTO system_config (key, value)
+                    VALUES ('content_difficulty_preference', 'easier')
+                """)
+            else:  # harder
+                # Prefer advanced content
+                self.db.execute("""
+                    INSERT OR REPLACE INTO system_config (key, value)
+                    VALUES ('content_difficulty_preference', 'harder')
+                """)
+            
+            self.db.commit()
+        except Exception as e:
+            print(f"Error adjusting difficulty: {e}")
     
     def _adjust_content_mix(self, content_type: str, target_ratio: float):
         """Adjust ratio of content types (video vs paper vs tutorial)."""
-        # Implementation: update recommendation channel weights
-        pass
+        # Store preference in system config
+        try:
+            config_key = f'content_mix_{content_type}'
+            self.db.execute("""
+                INSERT OR REPLACE INTO system_config (key, value)
+                VALUES (?, ?)
+            """, (config_key, str(target_ratio)))
+            
+            self.db.commit()
+        except Exception as e:
+            print(f"Error adjusting content mix: {e}")
     
     def _save_q_table(self):
         """Save Q-table to disk for persistence."""
+        from pathlib import Path
         import pickle
-        with open('~/Library/Application Support/RFAI/data/q_table.pkl', 'wb') as f:
+        
+        # Use cross-platform path
+        data_dir = Path.home() / ".rfai" / "data"
+        data_dir.mkdir(parents=True, exist_ok=True)
+        q_table_path = data_dir / "q_table.pkl"
+        
+        with open(q_table_path, 'wb') as f:
             pickle.dump(self.q_table, f)
     
     def load_q_table(self):
         """Load Q-table from disk."""
+        from pathlib import Path
         import pickle
-        import os
         
-        path = os.path.expanduser('~/Library/Application Support/RFAI/data/q_table.pkl')
-        if os.path.exists(path):
-            with open(path, 'rb') as f:
+        # Use cross-platform path
+        q_table_path = Path.home() / ".rfai" / "data" / "q_table.pkl"
+        
+        if q_table_path.exists():
+            with open(q_table_path, 'rb') as f:
                 self.q_table = pickle.load(f)
                 print(f"Loaded Q-table with {len(self.q_table)} states")
 

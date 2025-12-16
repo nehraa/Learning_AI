@@ -4,7 +4,6 @@ Creates and initializes the RFAI database with complete schema
 """
 
 import sqlite3
-import os
 from pathlib import Path
 import logging
 

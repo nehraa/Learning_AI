@@ -7,11 +7,9 @@ based on YOUR specific forgetting curve, not generic algorithms like Anki.
 Key Innovation: Learns YOUR retention patterns, not population averages.
 """
 
-import numpy as np
 from datetime import datetime, timedelta
-from typing import List, Dict, Tuple
+from typing import List, Tuple
 from dataclasses import dataclass
-import json
 
 @dataclass
 class Flashcard:

@@ -4,9 +4,7 @@ Uses Ollama (local LLM) or Perplexity API, with template fallback
 """
 
 import json
-import os
 import uuid
-from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 import logging
 import sys
@@ -139,44 +137,129 @@ class PlanGeneratorAI:
         """Generate plan using templates (fallback when no API)"""
         plan_id = str(uuid.uuid4())
         
-        # Estimate duration from context
-        timeline = context.get("timeline", "6 months")
-        if "month" in timeline:
-            weeks = int(timeline.split()[0]) * 4
-        else:
-            weeks = 26  # Default 6 months
+        # Dynamic duration estimation based on topic complexity and user
+        weeks = self._estimate_duration(topic, context)
         
-        weeks = min(weeks, 52)  # Max 52 weeks
+        logger.info(f"Generating template-based plan with {weeks} weeks for '{topic}'")
         
-        logger.info(f"Generating template-based plan with {weeks} weeks")
+        # Get daily time commitment
+        time_available = context.get("time_available", "3 hours/day")
+        daily_hours = float(time_available.split()[0]) if "hour" in time_available else 3.0
         
         # Create base structure
         plan = {
             "plan_id": plan_id,
             "topic": topic,
             "estimated_duration_weeks": weeks,
-            "daily_time_hours": 3.0,
+            "daily_time_hours": daily_hours,
             "current_week": 1,
             "current_day": 1,
             "status": "active",
             "weeks": [],
-            "milestones": []
+            "milestones": [],
+            "adaptive": True,  # Can be adjusted by RL
+            "complexity": self._estimate_complexity(topic)
         }
         
-        # Generate weeks
-        for week_num in range(1, min(weeks + 1, 5)):  # Generate first 4 weeks initially
+        # Generate initial weeks (4-8 based on total duration)
+        initial_weeks = min(8, weeks)
+        for week_num in range(1, initial_weeks + 1):
             week = self._generate_week_template(week_num, topic, context)
             plan["weeks"].append(week)
         
-        # Add milestones
-        plan["milestones"] = [
-            {"week": 4, "achievement": f"Foundation of {topic} complete"},
-            {"week": 12, "achievement": f"Intermediate {topic} proficiency"},
-            {"week": 26, "achievement": f"Advanced {topic} mastery"}
-        ]
+        # Add dynamic milestones based on duration
+        plan["milestones"] = self._generate_milestones(weeks, topic)
         
-        logger.info(f"Generated template plan: {len(plan['weeks'])} weeks")
+        logger.info(f"Generated adaptive plan: {len(plan['weeks'])} initial weeks (total: {weeks})")
         return plan
+    
+    def _estimate_duration(self, topic: str, context: Dict) -> int:
+        """
+        Dynamically estimate learning duration based on topic and user context
+        Not everything needs 52 weeks - fast learners need less time
+        """
+        # Check explicit timeline
+        timeline = context.get("timeline", "")
+        if "week" in timeline:
+            return min(int(timeline.split()[0]), 52)
+        elif "month" in timeline:
+            return min(int(timeline.split()[0]) * 4, 52)
+        
+        # Estimate based on topic complexity
+        topic_lower = topic.lower()
+        
+        # Quick skills (2-8 weeks)
+        quick_topics = ["git", "markdown", "bash", "sql basics", "html", "css"]
+        if any(quick in topic_lower for quick in quick_topics):
+            return 4  # 1 month
+        
+        # Medium complexity (8-16 weeks)
+        medium_topics = ["python basics", "javascript", "react", "flask", "django basics"]
+        if any(medium in topic_lower for medium in medium_topics):
+            return 12  # 3 months
+        
+        # Advanced topics (16-26 weeks)
+        advanced_topics = ["machine learning", "algorithms", "system design", "quantum"]
+        if any(adv in topic_lower for adv in advanced_topics):
+            return 20  # 5 months
+        
+        # Very advanced (26-40 weeks)
+        expert_topics = ["quantum mechanics", "category theory", "advanced mathematics", 
+                        "compiler design", "distributed systems"]
+        if any(exp in topic_lower for exp in expert_topics):
+            return 32  # 8 months
+        
+        # Adjust for learning speed
+        current_knowledge = context.get("current_knowledge", "beginner")
+        if current_knowledge in ["intermediate", "advanced"]:
+            # Reduce duration by 30% for experienced learners
+            base_weeks = 16
+            return int(base_weeks * 0.7)
+        
+        # Default: moderate duration
+        return 12  # 3 months for average topic
+    
+    def _estimate_complexity(self, topic: str) -> str:
+        """Estimate topic complexity"""
+        topic_lower = topic.lower()
+        
+        if any(word in topic_lower for word in ["quantum", "category", "advanced", "theoretical"]):
+            return "very_high"
+        elif any(word in topic_lower for word in ["machine learning", "algorithms", "cryptography"]):
+            return "high"
+        elif any(word in topic_lower for word in ["python", "javascript", "react", "database"]):
+            return "medium"
+        else:
+            return "low"
+    
+    def _generate_milestones(self, total_weeks: int, topic: str) -> List[Dict]:
+        """Generate dynamic milestones based on plan duration"""
+        milestones = []
+        
+        # Early milestone (10-20% through)
+        early = max(2, total_weeks // 5)
+        milestones.append({
+            "week": early,
+            "achievement": f"Fundamentals of {topic} mastered"
+        })
+        
+        # Mid milestone (40-50%)
+        mid = max(early + 2, total_weeks // 2)
+        if mid < total_weeks:
+            milestones.append({
+                "week": mid,
+                "achievement": f"Core {topic} concepts applied"
+            })
+        
+        # Late milestone (80-90%)
+        late = max(mid + 2, int(total_weeks * 0.85))
+        if late < total_weeks:
+            milestones.append({
+                "week": late,
+                "achievement": f"Advanced {topic} proficiency"
+            })
+        
+        return milestones
     
     def _generate_week_template(self, week_num: int, topic: str, context: Dict) -> Dict:
         """Generate a week template"""

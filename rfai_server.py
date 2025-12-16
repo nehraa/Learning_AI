@@ -4,10 +4,8 @@ RFAI Main Server
 Starts all daemons and the API server
 """
 
-import os
 import sys
 import time
-import signal
 import logging
 import argparse
 import threading
@@ -38,7 +36,7 @@ class RFAIServer:
     
     def __init__(self, 
                  db_path=None,
-                 api_host='0.0.0.0',
+                 api_host='127.0.0.1',
                  api_port=5000,
                  enable_daemons=True):
         """
@@ -46,7 +44,7 @@ class RFAIServer:
         
         Args:
             db_path: Path to database
-            api_host: API server host
+            api_host: API server host (default: 127.0.0.1 for security)
             api_port: API server port
             enable_daemons: Whether to start background daemons
         """

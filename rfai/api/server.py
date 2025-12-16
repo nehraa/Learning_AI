@@ -3,18 +3,15 @@ Enhanced RFAI API Server
 Extends the existing Learning_AI app with full RFAI features
 """
 
-import os
 import sys
 import json
 import uuid
 import logging
 from pathlib import Path
-from datetime import datetime, timedelta
-from typing import Optional, Dict, List
+from datetime import datetime
 
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
 from flask_cors import CORS
-import sqlite3
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
@@ -25,7 +22,6 @@ from rfai.ai.pace_learner_rl import PaceLearnerRL
 from rfai.ai.content_digest_ai import ContentDigestAI
 from rfai.ai.srs_engine import AdaptiveSRS
 from rfai.ai.schedule_optimizer import ScheduleOptimizer
-from rfai.ai.plan_format_processor import PlanFormatProcessor
 from database.init_db import get_db_connection, init_database
 
 logger = logging.getLogger(__name__)
@@ -80,26 +76,28 @@ def create_app():
             
             # Save to database
             conn = get_db_connection(app.config['RFAI_DB_PATH'])
-            cursor = conn.cursor()
-            
-            cursor.execute("""
-                INSERT INTO learning_plans (
-                    id, topic, estimated_duration_weeks, daily_time_hours,
-                    current_week, current_day, status, plan_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                plan['plan_id'],
-                plan['topic'],
-                plan['estimated_duration_weeks'],
-                plan['daily_time_hours'],
-                1,
-                1,
-                'active',
-                json.dumps(plan)
-            ))
-            
-            conn.commit()
-            conn.close()
+            try:
+                cursor = conn.cursor()
+                
+                cursor.execute("""
+                    INSERT INTO learning_plans (
+                        id, topic, estimated_duration_weeks, daily_time_hours,
+                        current_week, current_day, status, plan_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    plan['plan_id'],
+                    plan['topic'],
+                    plan['estimated_duration_weeks'],
+                    plan['daily_time_hours'],
+                    1,
+                    1,
+                    'active',
+                    json.dumps(plan)
+                ))
+                
+                conn.commit()
+            finally:
+                conn.close()
             
             logger.info(f"Plan saved: {plan['plan_id']}")
             

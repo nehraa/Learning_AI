@@ -4,7 +4,6 @@ Cross-platform with platform-specific implementations
 """
 
 import time
-import json
 import uuid
 import logging
 import platform
@@ -146,7 +145,7 @@ class TimeTrackerDaemon:
                     try:
                         with open(f'/proc/{pid}/comm', 'r') as f:
                             process_name = f.read().strip()
-                    except:
+                    except Exception:
                         process_name = "unknown"
                     
                     return {
@@ -174,7 +173,7 @@ class TimeTrackerDaemon:
             try:
                 process = psutil.Process(pid)
                 process_name = process.name()
-            except:
+            except Exception:
                 process_name = "unknown"
             
             return {

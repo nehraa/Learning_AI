@@ -153,50 +153,74 @@ class OllamaClient:
         Returns:
             Plan as dict
         """
-        system_prompt = """You are an expert curriculum designer. Generate personalized learning plans in JSON format.
-Focus on practical, actionable daily schedules with 3-hour breakdowns."""
+        # Calculate dynamic duration (NOT always 52 weeks!)
+        timeline = user_context.get('timeline', '3 months')
+        time_available = user_context.get('time_available', '3 hours/day')
+        current_knowledge = user_context.get('current_knowledge', 'beginner')
         
-        user_prompt = f"""Generate a comprehensive learning plan for: {topic}
+        # Estimate weeks based on timeline
+        if "week" in timeline:
+            suggested_weeks = min(int(timeline.split()[0]), 52)
+        elif "month" in timeline:
+            suggested_weeks = min(int(timeline.split()[0]) * 4, 52)
+        else:
+            suggested_weeks = 12  # Default 3 months
+        
+        # Adjust for knowledge level (experienced learners = faster)
+        if current_knowledge in ["intermediate", "advanced"]:
+            suggested_weeks = int(suggested_weeks * 0.7)
+        
+        daily_hours = float(time_available.split()[0]) if 'hour' in time_available else 3
+        
+        system_prompt = f"""You are an expert curriculum designer. Create ADAPTIVE learning plans.
+CRITICAL: NOT every topic needs 52 weeks! Adjust duration based on complexity:
+- Simple skills (Git, Markdown): 4-8 weeks
+- Medium topics (Python basics, React): 8-16 weeks  
+- Complex topics (ML, Algorithms): 16-26 weeks
+- Advanced topics (Quantum Mechanics): 26-40 weeks
+
+Be realistic. Users learn at different paces!"""
+        
+        user_prompt = f"""Generate a learning plan for: {topic}
 
 User Context:
-- Time available: {user_context.get('time_available', '3 hours/day')}
-- Timeline: {user_context.get('timeline', '6 months')}
+- Time available: {time_available}
+- Timeline: {timeline} (≈{suggested_weeks} weeks)
 - Learning style: {user_context.get('learning_style', 'balanced')}
-- Current knowledge: {user_context.get('current_knowledge', 'beginner')}
+- Current knowledge: {current_knowledge}
 
-Generate a JSON plan with this structure:
+IMPORTANT: Generate for {suggested_weeks} weeks, NOT always 52! Match topic complexity.
+
+JSON structure:
 {{
   "topic": "{topic}",
-  "estimated_duration_weeks": 26,
-  "daily_time_hours": 3,
+  "estimated_duration_weeks": {suggested_weeks},
+  "daily_time_hours": {daily_hours},
+  "adaptive": true,
   "weeks": [
     {{
       "week_number": 1,
-      "theme": "Foundations",
+      "theme": "Week theme",
       "days": [
         {{
           "day_number": 1,
-          "micro_topic": "Introduction to {topic}",
+          "micro_topic": "Daily topic",
           "learning_objectives": ["obj1", "obj2", "obj3"],
           "time_breakdown": {{
             "00:00-00:45": "Activity 1",
             "00:45-01:45": "Activity 2",
             "01:45-02:30": "Activity 3",
-            "02:30-03:00": "Mini-quiz"
+            "02:30-03:00": "Review"
           }},
-          "resources": [
-            {{"type": "video", "title": "...", "difficulty": "beginner"}}
-          ],
-          "mini_quiz": [
-            {{"question": "...", "answer": "...", "difficulty": "easy"}}
-          ]
+          "resources": [{{"type": "video", "title": "...", "difficulty": "beginner"}}],
+          "mini_quiz": [{{"question": "...", "answer": "..."}}]
         }}
       ]
     }}
   ]
 }}
 
-Generate at least 4 weeks with 7 days each. Include detailed time breakdowns and quizzes."""
+Generate first 4-6 weeks with full detail. RL will adapt pace during execution."""
         
         try:
             response = self.chat([

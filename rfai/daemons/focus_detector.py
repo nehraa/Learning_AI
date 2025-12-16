@@ -209,7 +209,7 @@ class FocusDetectorDaemon:
                 return 0.7
             else:
                 return 0.9
-        except:
+        except Exception:
             return 0.5
     
     def log_focus_state(self, focus_data: Dict):
