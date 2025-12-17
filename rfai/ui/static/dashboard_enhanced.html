@@ -860,10 +860,11 @@
                         const runtime = movie.runtime || 'N/A';
                         const url = movie.url || '#';
                         
+                        const safeTitle = title.replace(/[<>"'&]/g, '');
                         contentHtml += `
                             <div style="border: 1px solid #ddd; border-radius: 8px; padding: 12px; background: #f9f9f9;">
                                 <a href="${url}" target="_blank" style="text-decoration: none; color: #333;">
-                                    <img src="${posterUrl}" style="width: 100%; border-radius: 4px; margin-bottom: 8px; min-height: 300px; object-fit: cover;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22300%22%3E%3Crect fill=%23ddd%22 width=%22200%22 height=%22300%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2214%22%3E${title}%3C/text%3E%3C/svg%3E'">
+                                    <img src="${posterUrl}" style="width: 100%; border-radius: 4px; margin-bottom: 8px; min-height: 300px; object-fit: cover;" onerror="this.style.display='none'">
                                     <div style="font-weight: 600; margin-bottom: 5px;">${title}</div>
                                     <div style="color: #666; font-size: 0.9em; margin-bottom: 4px;">${director}</div>
                                     <div style="color: #999; font-size: 0.85em;">${year} • ⭐ ${rating}</div>
@@ -876,13 +877,9 @@
                     contentHtml += `</div></div>`;
                 }
                 
-                if (contentHtml) {
-                    document.getElementById('content-container').innerHTML = contentHtml;
-                    document.getElementById('content-card').style.display = 'block';
-                } else {
-                    document.getElementById('content-container').innerHTML = '<p style="color: #999;">No content available for this block</p>';
-                    document.getElementById('content-card').style.display = 'block';
-                }
+                // Always show content card with appropriate message
+                document.getElementById('content-container').innerHTML = contentHtml || '<p style="color: #999;">No content available</p>';
+                document.getElementById('content-card').style.display = 'block';
             } catch (error) {
                 console.error('Error loading content:', error);
                 document.getElementById('content-container').innerHTML = '<p style="color: #f44;">Error loading content. Please check console.</p>';
@@ -1120,9 +1117,14 @@
                         `;
                     });
                     
-                    questionsHtml += `<button onclick="submitQuiz('${data.quiz_id}')" class="btn btn-success">Submit Quiz</button>`;
-                    questionsHtml += '</div>';
+                    questionsHtml += `<button id="submit-quiz-btn" data-quiz-id="${data.quiz_id}" class="btn btn-success">Submit Quiz</button>`;
                     questionsDiv.innerHTML = questionsHtml;
+                    
+                    // Add event listener for submit button
+                    document.getElementById('submit-quiz-btn').addEventListener('click', function() {
+                        submitQuiz(this.getAttribute('data-quiz-id'));
+                    });
+                    questionsHtml += '</div>';
                 }
             } catch (error) {
                 console.error('Error generating quiz:', error);
@@ -1135,7 +1137,7 @@
             const questions = document.querySelectorAll('input[type="radio"]:checked');
             
             questions.forEach(radio => {
-                const questionNum = radio.name.replace('q', '');
+                const questionNum = radio.name.substring(1); // Remove 'q' prefix
                 answers[questionNum] = parseInt(radio.value);
             });
             
