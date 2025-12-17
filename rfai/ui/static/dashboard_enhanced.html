@@ -552,6 +552,66 @@
             </div>
         </div>
 
+        <!-- Courses Section -->
+        <div class="card" style="margin-top: 20px;">
+            <div class="card-title">🎓 Online Courses</div>
+            <div id="courses-container">
+                <p style="color: #666; margin-bottom: 15px;">Explore structured learning paths from top platforms:</p>
+                <div class="btn-group">
+                    <a href="https://www.edx.org/" target="_blank" class="btn btn-primary">edX Courses</a>
+                    <a href="https://ocw.mit.edu/" target="_blank" class="btn btn-primary">MIT OpenCourseWare</a>
+                    <a href="https://www.coursera.org/" target="_blank" class="btn btn-primary">Coursera</a>
+                    <a href="https://www.khanacademy.org/" target="_blank" class="btn btn-primary">Khan Academy</a>
+                </div>
+                <div style="margin-top: 20px;">
+                    <h4 style="margin-bottom: 10px;">🔍 Search for Study Materials</h4>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="text" id="study-search-input" placeholder="Enter topic (e.g., Quantum Mechanics)" 
+                               style="flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1em;">
+                        <button onclick="searchStudyMaterial()" class="btn btn-success" style="flex: 0 0 auto;">Search with Perplexity</button>
+                    </div>
+                    <div id="study-search-results" style="margin-top: 15px;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quiz Section -->
+        <div class="card" style="margin-top: 20px;">
+            <div class="card-title">📝 Knowledge Testing</div>
+            <div id="quiz-container">
+                <p style="color: #666; margin-bottom: 15px;">Test your understanding with AI-generated quizzes:</p>
+                <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 20px;">
+                    <input type="text" id="quiz-topic-input" placeholder="Enter topic for quiz (e.g., Organic Chemistry)" 
+                           style="flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1em;">
+                    <select id="quiz-difficulty" style="padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 1em;">
+                        <option value="easy">Easy</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                    <button onclick="generateQuiz()" class="btn btn-success" style="flex: 0 0 auto;">Generate Quiz</button>
+                </div>
+                <div id="quiz-results" style="margin-top: 15px;"></div>
+                <div id="quiz-questions" style="margin-top: 20px;"></div>
+            </div>
+        </div>
+
+        <!-- Notion Integration -->
+        <div class="card" style="margin-top: 20px;">
+            <div class="card-title">📓 Notion Integration</div>
+            <div>
+                <p style="color: #666; margin-bottom: 15px;">Sync your learning progress and notes with Notion.</p>
+                <div id="notion-status">
+                    <p style="font-size: 0.9em; color: #999;">
+                        To enable Notion integration, add <code>NOTION_API_KEY</code> and <code>NOTION_DATABASE_ID</code> to your <code>.env</code> file.
+                    </p>
+                </div>
+                <div class="btn-group" style="margin-top: 15px;">
+                    <button onclick="syncToNotion()" class="btn btn-primary">Sync to Notion</button>
+                    <a href="https://www.notion.so/my-integrations" target="_blank" class="btn btn-primary">Get Notion API Key</a>
+                </div>
+            </div>
+        </div>
+
         <nav>
             <a href="/api/status">API Status</a>
             <a href="/api/plans">Plans</a>
@@ -601,7 +661,9 @@
                 } else {
                     document.getElementById('current-block-container').style.display = 'none';
                     document.getElementById('no-block-container').style.display = 'block';
-                    document.getElementById('content-card').style.display = 'none';
+                    
+                    // ALWAYS load content even when no block is active
+                    loadContentForBlock(data);
                     
                     // Update access control for no active block
                     updateAccessControl(null);
@@ -666,9 +728,19 @@
 
         async function loadContentForBlock(blockData) {
             try {
+                let contentHtml = ''; // Initialize content HTML
+                
                 // Fetch actual content from API
                 const response = await fetch(`${API_BASE}/fetch/current-block-content`);
                 const data = await response.json();
+                
+                // Update title based on block status
+                const titleElement = document.getElementById('content-title');
+                if (data.active && blockData && blockData.block) {
+                    titleElement.textContent = `📺 Resources for ${blockData.block.name}`;
+                } else {
+                    titleElement.textContent = '📚 All Learning Resources';
+                }
                 
                 // If no active block, fetch recommendations from all blocks
                 let content = data.content;
@@ -694,11 +766,32 @@
                         };
                     } catch (e) {
                         console.warn('Could not fetch all content:', e);
-                        if (!data.active) {
-                            document.getElementById('content-card').style.display = 'none';
-                            return;
-                        }
+                        content = {
+                            youtube_videos: [],
+                            research_papers: [],
+                            movies: []
+                        };
                     }
+                }
+                
+                // Add API key reminder if no content
+                const hasContent = (content.youtube_videos && content.youtube_videos.length > 0) ||
+                                 (content.research_papers && content.research_papers.length > 0) ||
+                                 (content.movies && content.movies.length > 0);
+                
+                if (!hasContent) {
+                    contentHtml += `
+                        <div style="background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                            <h4 style="margin-bottom: 10px;">⚠️ No Content Available</h4>
+                            <p style="margin-bottom: 10px;">To see real recommendations, add your API keys to the <code>.env</code> file:</p>
+                            <ul style="margin-left: 20px; line-height: 1.8;">
+                                <li><strong>YOUTUBE_API_KEY</strong> - For video recommendations</li>
+                                <li><strong>OMDB_API_KEY</strong> - For movie recommendations</li>
+                                <li><strong>PERPLEXITY_API_KEY</strong> - For study material search</li>
+                            </ul>
+                            <p style="margin-top: 10px; font-size: 0.9em; color: #666;">See <code>.env.example</code> for instructions on getting free API keys.</p>
+                        </div>
+                    `;
                 }
                 
                 // Display YouTube videos
@@ -913,6 +1006,192 @@
             } catch (error) {
                 console.error('Error checking access:', error);
                 return true; // Allow if check fails
+            }
+        }
+
+        async function searchStudyMaterial() {
+            const input = document.getElementById('study-search-input');
+            const resultsDiv = document.getElementById('study-search-results');
+            const topic = input.value.trim();
+            
+            if (!topic) {
+                alert('Please enter a topic to search');
+                return;
+            }
+            
+            resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div>Searching with Perplexity...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/fetch/study-plan-content`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ study_plan: topic })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    resultsDiv.innerHTML = `<div style="background: #fff3cd; padding: 15px; border-radius: 8px;">
+                        <strong>⚠️ Perplexity API not configured</strong><br>
+                        Add your <code>PERPLEXITY_API_KEY</code> to the .env file to enable search.
+                    </div>`;
+                    return;
+                }
+                
+                let html = '<div style="background: #f9f9f9; padding: 15px; border-radius: 8px; margin-top: 10px;">';
+                html += `<h4 style="margin-bottom: 10px;">Results for "${topic}"</h4>`;
+                
+                if (data.recommended_resources) {
+                    html += '<div style="margin-top: 10px;">';
+                    data.recommended_resources.forEach(resource => {
+                        html += `<div style="margin-bottom: 10px; padding: 10px; background: white; border-radius: 6px;">
+                            <strong>${resource.title || 'Resource'}</strong><br>
+                            <span style="font-size: 0.9em; color: #666;">${resource.description || ''}</span>
+                        </div>`;
+                    });
+                    html += '</div>';
+                }
+                
+                html += '</div>';
+                resultsDiv.innerHTML = html;
+            } catch (error) {
+                console.error('Error searching:', error);
+                resultsDiv.innerHTML = '<p style="color: #f44;">Error searching. Check console.</p>';
+            }
+        }
+
+        async function generateQuiz() {
+            const topicInput = document.getElementById('quiz-topic-input');
+            const difficulty = document.getElementById('quiz-difficulty').value;
+            const resultsDiv = document.getElementById('quiz-results');
+            const questionsDiv = document.getElementById('quiz-questions');
+            const topic = topicInput.value.trim();
+            
+            if (!topic) {
+                alert('Please enter a topic for the quiz');
+                return;
+            }
+            
+            resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div>Generating quiz...</div>';
+            questionsDiv.innerHTML = '';
+            
+            try {
+                const response = await fetch(`${API_BASE}/quiz/generate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        topic: topic,
+                        difficulty: difficulty,
+                        num_questions: 10
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    resultsDiv.innerHTML = `<div style="background: #f8d7da; padding: 15px; border-radius: 8px; color: #721c24;">
+                        <strong>❌ Error:</strong> ${data.error}
+                    </div>`;
+                    return;
+                }
+                
+                resultsDiv.innerHTML = `<div style="background: #d4edda; padding: 15px; border-radius: 8px; color: #155724;">
+                    <strong>✅ Quiz generated!</strong> ${data.questions ? data.questions.length : 0} questions ready.
+                </div>`;
+                
+                // Display questions
+                if (data.questions && data.questions.length > 0) {
+                    let questionsHtml = '<div style="background: #f9f9f9; padding: 20px; border-radius: 8px; margin-top: 15px;">';
+                    questionsHtml += `<h4 style="margin-bottom: 20px;">Quiz: ${topic}</h4>`;
+                    
+                    data.questions.forEach((q, idx) => {
+                        questionsHtml += `
+                            <div style="background: white; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                                <div style="font-weight: 600; margin-bottom: 10px;">${idx + 1}. ${q.question}</div>
+                                <div style="margin-left: 15px;">
+                                    ${q.options.map((opt, optIdx) => `
+                                        <label style="display: block; margin-bottom: 8px; cursor: pointer;">
+                                            <input type="radio" name="q${idx}" value="${optIdx}" style="margin-right: 8px;">
+                                            ${opt}
+                                        </label>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    questionsHtml += `<button onclick="submitQuiz('${data.quiz_id}')" class="btn btn-success">Submit Quiz</button>`;
+                    questionsHtml += '</div>';
+                    questionsDiv.innerHTML = questionsHtml;
+                }
+            } catch (error) {
+                console.error('Error generating quiz:', error);
+                resultsDiv.innerHTML = '<p style="color: #f44;">Error generating quiz. Check console.</p>';
+            }
+        }
+
+        async function submitQuiz(quizId) {
+            const answers = {};
+            const questions = document.querySelectorAll('input[type="radio"]:checked');
+            
+            questions.forEach(radio => {
+                const questionNum = radio.name.replace('q', '');
+                answers[questionNum] = parseInt(radio.value);
+            });
+            
+            try {
+                const response = await fetch(`${API_BASE}/quiz/${quizId}/submit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ answers: answers })
+                });
+                
+                const data = await response.json();
+                
+                const score = data.score || 0;
+                const total = data.total || 0;
+                const percentage = data.percentage || 0;
+                
+                alert(`✅ Quiz completed!\n\nScore: ${score}/${total} (${percentage.toFixed(1)}%)`);
+                
+                // Show results
+                document.getElementById('quiz-results').innerHTML = `
+                    <div style="background: #d4edda; padding: 20px; border-radius: 8px; color: #155724;">
+                        <h4 style="margin-bottom: 10px;">Quiz Results</h4>
+                        <div style="font-size: 1.5em; font-weight: bold; margin-bottom: 10px;">
+                            ${score}/${total} (${percentage.toFixed(1)}%)
+                        </div>
+                        <p>${data.feedback || 'Great job!'}</p>
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error submitting quiz:', error);
+                alert('Error submitting quiz. Check console.');
+            }
+        }
+
+        async function syncToNotion() {
+            const statusDiv = document.getElementById('notion-status');
+            statusDiv.innerHTML = '<div class="loading"><div class="spinner"></div>Syncing to Notion...</div>';
+            
+            try {
+                // Check if Notion is configured
+                const response = await fetch(`${API_BASE}/status`);
+                const data = await response.json();
+                
+                // For now, just show a message
+                statusDiv.innerHTML = `
+                    <div style="background: #fff3cd; padding: 15px; border-radius: 8px;">
+                        <strong>ℹ️ Notion Integration</strong><br>
+                        To enable automatic syncing of your learning progress to Notion:<br>
+                        1. Get your Notion API key from <a href="https://www.notion.so/my-integrations" target="_blank">notion.so/my-integrations</a><br>
+                        2. Add <code>NOTION_API_KEY</code> and <code>NOTION_DATABASE_ID</code> to your .env file<br>
+                        3. Restart the server
+                    </div>
+                `;
+            } catch (error) {
+                console.error('Error syncing to Notion:', error);
+                statusDiv.innerHTML = '<p style="color: #f44;">Error syncing. Check console.</p>';
             }
         }
     </script>
