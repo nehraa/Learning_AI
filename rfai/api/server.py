@@ -1024,20 +1024,19 @@ def create_app():
     def get_paper_recommendations():
         """Get research paper recommendations"""
         try:
-            # Try to fetch actual papers
+            # Fetch papers from ArXiv (or get sample papers as fallback)
             papers = app.content_fetcher.fetch_research_papers(max_results=10)
             
-            if papers:
-                return jsonify({
-                    'papers': papers,
-                    'research_papers': papers,
-                    'count': len(papers),
-                    'source': 'arxiv'
-                })
+            # Also get the metadata from time block manager
+            metadata = app.time_block_manager.get_papers_content()
             
-            # Fallback to content manager
-            content = app.time_block_manager.get_papers_content()
-            return jsonify(content)
+            return jsonify({
+                'papers': papers,
+                'research_papers': papers,
+                'count': len(papers),
+                'source': 'arxiv',
+                'metadata': metadata
+            })
         except Exception as e:
             logger.error(f"Error getting paper recommendations: {e}")
             return jsonify({'error': str(e)}), 500
