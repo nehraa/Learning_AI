@@ -1,7 +1,7 @@
 @echo off
 echo.
 echo ======================================================================
-echo   ENHANCED LEARNING CURATION SYSTEM - SETUP
+echo   RFAI (ADVANCED) - SETUP
 echo ======================================================================
 echo.
 
@@ -25,9 +25,8 @@ echo   SETUP COMPLETE!
 echo ======================================================================
 echo.
 echo To start the system:
-echo   1. Activate environment: venv\Scripts\activate.bat
-echo   2. Run server:          python app.py
-echo   3. Open browser:        http://localhost:5000
+echo   1. Run:                 run.bat
+echo   2. Open:                http://localhost:5000 (or the port you set)
 echo.
 echo ======================================================================
 pause

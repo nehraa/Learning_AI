@@ -21,7 +21,7 @@ from rfai.ai.plan_generator import PlanGeneratorAI
 from rfai.ai.pace_learner_rl import PaceLearnerRL
 from rfai.ai.content_digest_ai import ContentDigestAI
 from rfai.ai.srs_engine import AdaptiveSRS
-from rfai.ai.schedule_optimizer import ScheduleOptimizer
+from rfai.ai.schedule_optimizer import ScheduleOptimizerAI
 from database.init_db import get_db_connection, init_database
 
 logger = logging.getLogger(__name__)
@@ -29,6 +29,14 @@ logger = logging.getLogger(__name__)
 
 def create_app():
     """Create and configure the Flask app"""
+    # Load and normalize .env so integrations can read API keys
+    try:
+        from rfai.config.env import load_env
+        load_env(override=False)
+    except Exception:
+        # Never fail app startup because of dotenv parsing
+        pass
+
     app = Flask(__name__)
     CORS(app)
     
@@ -53,6 +61,29 @@ def create_app():
     app.schedule_optimizer = None  # Initialized on demand
     
     logger.info("RFAI API Server initialized")
+
+    @app.route('/', methods=['GET'])
+    def home():
+        """Serve the RFAI dashboard"""
+        try:
+            dashboard_path = Path(__file__).parent.parent / 'ui' / 'static' / 'index.html'
+            if dashboard_path.exists():
+                return dashboard_path.read_text(encoding='utf-8')
+            else:
+                # Fallback if dashboard file doesn't exist
+                return (
+                    "<h2>RFAI Server</h2>"
+                    "<ul>"
+                    "<li><a href='/health'>/health</a></li>"
+                    "<li><a href='/api/status'>/api/status</a></li>"
+                    "<li><a href='/api/plans'>/api/plans</a></li>"
+                    "</ul>",
+                    200,
+                    {'Content-Type': 'text/html; charset=utf-8'},
+                )
+        except Exception as e:
+            logger.error(f"Error serving dashboard: {e}")
+            return jsonify({'error': 'Dashboard unavailable'}), 500
     
     # ============================================================================
     # LEARNING PLAN ENDPOINTS
@@ -533,6 +564,68 @@ def create_app():
             
         except Exception as e:
             logger.error(f"Error getting status: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    # ============================================================================
+    # TIMETABLE & SCHEDULE ENDPOINTS
+    # ============================================================================
+    
+    @app.route('/api/timetable/today', methods=['GET'])
+    def get_today_timetable():
+        """Get today's timetable slots"""
+        try:
+            conn = get_db_connection(app.config['RFAI_DB_PATH'])
+            cursor = conn.cursor()
+            
+            cursor.execute("""
+                SELECT id, start_time, end_time, task, subtask, context,
+                       min_focus_target, recommended_content_type, completed
+                FROM timetable_slots
+                WHERE day = 'weekday' OR day = 'all'
+                ORDER BY start_time ASC
+                LIMIT 10
+            """)
+            
+            slots = [dict(row) for row in cursor.fetchall()]
+            conn.close()
+            
+            return jsonify({
+                'slots': slots,
+                'count': len(slots)
+            })
+            
+        except Exception as e:
+            logger.error(f"Error getting timetable: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/discovery/search', methods=['POST'])
+    def discover_content():
+        """Search for content by topic"""
+        try:
+            data = request.json
+            topic = data.get('topic', 'machine learning')
+            
+            try:
+                from rfai.ai.multi_source_discovery import MultiSourceDiscovery
+                discovery = MultiSourceDiscovery()
+                results = discovery.discover(topic, max_results=10)
+                
+                return jsonify({
+                    'topic': topic,
+                    'results': results,
+                    'count': len(results)
+                })
+            except Exception as e:
+                logger.warning(f"Discovery failed: {e}")
+                return jsonify({
+                    'topic': topic,
+                    'results': [],
+                    'note': 'Add API keys to .env: YOUTUBE_API_KEY, PERPLEXITY_API_KEY, OMDB_API_KEY',
+                    'count': 0
+                })
+            
+        except Exception as e:
+            logger.error(f"Error discovering content: {e}")
             return jsonify({'error': str(e)}), 500
     
     # ============================================================================

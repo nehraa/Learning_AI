@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "======================================================================"
-echo "  ENHANCED LEARNING CURATION SYSTEM - SETUP"
+echo "  RFAI (ADVANCED) - SETUP"
 echo "======================================================================"
 echo ""
 
@@ -43,8 +43,7 @@ echo "  SETUP COMPLETE!"
 echo "======================================================================"
 echo ""
 echo "To start the system:"
-echo "  1. Activate environment: source venv/bin/activate"
-echo "  2. Run server:          ./run.sh or python app.py (the app will prefer ./venv if present)"
-echo "  3. Open browser:        http://localhost:5000"
+	echo "  1. Run:                 ./run.sh"
+	echo "  2. Open:                http://localhost:5000 (or the port printed)"
 echo ""
 echo "======================================================================"

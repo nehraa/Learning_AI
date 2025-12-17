@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RFAI Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root{
+            --bg-1: #0f172a;
+            --card: rgba(255,255,255,0.05);
+            --accentA: #667eea;
+            --accentB: #764ba2;
+            --glass: rgba(255,255,255,0.06);
+            --muted: #9aa4bf;
+        }
+        html,body{height:100%;margin:0;padding:0;}
+        body{
+            font-family:Inter,system-ui,-apple-system,sans-serif;
+            background:radial-gradient(circle at 10% 10%, rgba(118,75,162,0.12), transparent 20%), 
+                       radial-gradient(circle at 90% 90%, rgba(102,126,234,0.12), transparent 20%), 
+                       linear-gradient(180deg,#071230 0%, #071a2f 100%);
+            color:#e6eef8;
+            min-height:100vh;
+            -webkit-font-smoothing:antialiased;
+        }
+        .container{max-width:1200px;margin:32px auto;padding:28px;}
+        .header{display:flex;align-items:center;gap:16px;margin-bottom:32px;}
+        .logo{
+            width:64px;height:64px;border-radius:16px;
+            background:linear-gradient(135deg,#667eea 0%, #764ba2 100%);
+            display:flex;align-items:center;justify-content:center;
+            font-weight:800;font-size:24px;
+            box-shadow:0 6px 24px rgba(102,126,234,0.3);
+        }
+        h1{font-size:28px;margin:0;}
+        .subtitle{color:var(--muted);font-size:14px;margin-top:4px;}
+        .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:24px;}
+        .card{
+            background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+            border-radius:16px;padding:24px;
+            box-shadow:0 8px 30px rgba(2,6,23,0.6);
+            border:1px solid rgba(255,255,255,0.04);
+        }
+        .card h3{margin:0 0 12px 0;font-size:18px;}
+        .stat{
+            background:rgba(255,255,255,0.02);
+            padding:16px;border-radius:12px;
+            margin-top:12px;
+            border:1px solid rgba(255,255,255,0.03);
+        }
+        .stat-value{font-size:32px;font-weight:700;color:#9cc0ff;margin:8px 0;}
+        .stat-label{color:var(--muted);font-size:13px;}
+        .btn{
+            display:inline-flex;align-items:center;gap:10px;
+            padding:12px 20px;border-radius:12px;
+            background:linear-gradient(135deg,#667eea 0%, #764ba2 100%);
+            color:white;border:none;cursor:pointer;
+            font-weight:600;text-decoration:none;
+            margin-top:12px;
+        }
+        .btn:hover{opacity:0.9;}
+        .status{
+            display:inline-block;
+            padding:6px 12px;
+            border-radius:8px;
+            font-size:12px;
+            font-weight:600;
+        }
+        .status.active{background:rgba(34,197,94,0.2);color:#4ade80;}
+        .status.warning{background:rgba(251,191,36,0.2);color:#fbbf24;}
+        .muted{color:var(--muted);}
+        .plans-list{margin-top:16px;}
+        .plan-item{
+            background:rgba(255,255,255,0.02);
+            padding:12px 16px;
+            border-radius:10px;
+            margin-bottom:8px;
+            border:1px solid rgba(255,255,255,0.03);
+            display:flex;justify-content:space-between;
+            align-items:center;
+        }
+        .plan-item:hover{background:rgba(255,255,255,0.04);}
+        .actions{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap;}
+        .link{color:#9cc0ff;text-decoration:none;font-size:14px;}
+        .link:hover{text-decoration:underline;}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">RF</div>
+            <div>
+                <h1>RFAI Dashboard</h1>
+                <div class="subtitle">Routine Focus AI - Learning & Schedule Management</div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>System Status</h3>
+                <div id="systemStatus">
+                    <div class="muted">Loading...</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Your Stats</h3>
+                <div id="userStats">
+                    <div class="stat">
+                        <div class="stat-label">Learning Plans</div>
+                        <div class="stat-value" id="planCount">-</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Active Goals</div>
+                        <div class="stat-value" id="goalCount">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Background Daemons</h3>
+                <div id="daemons">
+                    <div class="muted">Checking...</div>
+                </div>
+                <div style="margin-top:12px;font-size:12px;color:var(--muted);">
+                    <div id="liveFocus">Focus: <span class="muted">Waiting...</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:24px;">
+            <h3>Today's Schedule</h3>
+            <div id="timetableList" class="plans-list">
+                <div class="muted">Loading schedule...</div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:24px;">
+            <h3>Your Learning Plans</h3>
+            <div id="plansList" class="plans-list">
+                <div class="muted">Loading plans...</div>
+            </div>
+            <div class="actions">
+                <button class="btn" onclick="showCreatePlan()">Create New Plan</button>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:24px;">
+            <h3>Discover Content</h3>
+            <div style="display:flex;gap:10px;margin-bottom:16px;">
+                <input type="text" id="discoveryTopic" placeholder="Enter topic (e.g., Machine Learning)" 
+                       style="flex:1;padding:10px;border-radius:8px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#e6eef8;">
+                <button class="btn" onclick="discoverContent()">Search</button>
+            </div>
+            <div id="discoveryResults" class="plans-list">
+                <div class="muted">Enter a topic and click Search to find YouTube, papers, and documentaries</div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:24px;">
+            <h3>Quick Actions</h3>
+            <div class="actions">
+                <button class="btn" onclick="location.reload()">Refresh Dashboard</button>
+                <a href="/api/plans" class="btn" style="background:rgba(255,255,255,0.05);">View All Plans (JSON)</a>
+                <a href="/api/timetable/today" class="btn" style="background:rgba(255,255,255,0.05);">View Schedule (JSON)</a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+                
+                // System status
+                document.getElementById('systemStatus').innerHTML = `
+                    <div class="stat">
+                        <div class="stat-label">Status</div>
+                        <span class="status active">Healthy</span>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Version</div>
+                        <div class="stat-value" style="font-size:20px;">${data.version || '1.0.0'}</div>
+                    </div>
+                `;
+
+                // Stats
+                document.getElementById('planCount').textContent = data.stats?.plans || 0;
+                document.getElementById('goalCount').textContent = data.stats?.goals || 0;
+
+                // Daemons
+                const daemonsList = data.daemons || [];
+                if (daemonsList.length === 0) {
+                    document.getElementById('daemons').innerHTML = '<div class="muted">No daemons running</div>';
+                } else {
+                    document.getElementById('daemons').innerHTML = daemonsList.map(d => `
+                        <div class="stat">
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <span>${d.name}</span>
+                                <span class="status ${d.running ? 'active' : 'warning'}">
+                                    ${d.running ? 'Running' : 'Stopped'}
+                                </span>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                document.getElementById('systemStatus').innerHTML = 
+                    '<span class="status warning">Error loading status</span>';
+            }
+        }
+
+        async function loadLiveFocus() {
+            try {
+                const res = await fetch('/api/focus/current');
+                const data = await res.json();
+                const el = document.getElementById('liveFocus');
+                if (data.state) {
+                    const color = data.state === 'FOCUSED' ? '#4ade80' : 
+                                  data.state === 'DISTRACTED' ? '#f87171' : '#9aa4bf';
+                    el.innerHTML = `Focus: <span style="color:${color};font-weight:bold">${data.state}</span> 
+                                   <span class="muted">(${Math.round((data.confidence || 0)*100)}%)</span>`;
+                }
+            } catch(e) {
+                console.log('Focus fetch error', e);
+            }
+        }
+
+        async function loadPlans() {
+            try {
+                const res = await fetch('/api/plans');
+                const data = await res.json();
+                const plans = data.plans || [];
+                
+                if (plans.length === 0) {
+                    document.getElementById('plansList').innerHTML = 
+                        '<div class="muted">No plans yet. Create your first learning plan!</div>';
+                } else {
+                    document.getElementById('plansList').innerHTML = plans.map(p => `
+                        <div class="plan-item">
+                            <div>
+                                <div style="font-weight:600;">${p.topic}</div>
+                                <div class="muted" style="font-size:12px;margin-top:4px;">
+                                    Week ${p.current_week}, Day ${p.current_day} • 
+                                    ${p.estimated_duration_weeks} weeks total
+                                </div>
+                            </div>
+                            <span class="status ${p.status === 'active' ? 'active' : 'warning'}">
+                                ${p.status}
+                            </span>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                document.getElementById('plansList').innerHTML = 
+                    '<div class="muted">Error loading plans</div>';
+            }
+        }
+
+        async function loadTimetable() {
+            try {
+                const res = await fetch('/api/timetable/today');
+                const data = await res.json();
+                
+                if (!data.slots || data.slots.length === 0) {
+                    document.getElementById('timetableList').innerHTML = 
+                        '<div class="muted">No schedule set. Create a learning plan to auto-generate your daily schedule.</div>';
+                } else {
+                    document.getElementById('timetableList').innerHTML = data.slots.map(s => `
+                        <div class="plan-item">
+                            <div>
+                                <div style="font-weight:600;">${s.start_time} - ${s.end_time}</div>
+                                <div style="color:#9cc0ff;margin-top:4px;">${s.task}</div>
+                                ${s.subtask ? `<div class="muted" style="font-size:12px;margin-top:4px;">${s.subtask}</div>` : ''}
+                                ${s.recommended_content_type ? `<div class="muted" style="font-size:11px;margin-top:4px;">📺 ${s.recommended_content_type}</div>` : ''}
+                            </div>
+                            <span class="status ${s.completed ? 'active' : 'warning'}">
+                                ${s.completed ? '✓ Done' : 'Pending'}
+                            </span>
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                document.getElementById('timetableList').innerHTML = 
+                    '<div class="muted">Error loading schedule</div>';
+            }
+        }
+
+        async function discoverContent() {
+            const topic = document.getElementById('discoveryTopic').value;
+            if (!topic) {
+                alert('Please enter a topic');
+                return;
+            }
+            
+            document.getElementById('discoveryResults').innerHTML = '<div class="muted">Searching...</div>';
+            
+            try {
+                const res = await fetch('/api/discovery/search', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({topic: topic})
+                });
+                const data = await res.json();
+                
+                if (!data.results || data.results.length === 0) {
+                    document.getElementById('discoveryResults').innerHTML = `
+                        <div class="muted">
+                            ${data.note || 'No results found'}<br><br>
+                            <strong>To enable:</strong> Add these keys to your .env file:<br>
+                            • YOUTUBE_API_KEY (search videos)<br>
+                            • PERPLEXITY_API_KEY (web search + summaries)<br>
+                            • OMDB_API_KEY (movies & documentaries)<br>
+                            <a href="https://console.cloud.google.com/" target="_blank" style="color:#9cc0ff;">Get YouTube API →</a>
+                        </div>
+                    `;
+                } else {
+                    document.getElementById('discoveryResults').innerHTML = data.results.map((r, i) => `
+                        <div class="plan-item" style="padding:16px;flex-direction:column;align-items:flex-start;">
+                            <div style="display:flex;align-items:center;gap:12px;width:100%;margin-bottom:8px;">
+                                <div style="flex:1;">
+                                    <a href="${r.url || '#'}" target="_blank" style="color:#9cc0ff;font-weight:600;text-decoration:none;">
+                                        ${r.title}
+                                    </a>
+                                    <div class="muted" style="font-size:12px;margin-top:4px;">
+                                        ${r.source} • ${r.type}
+                                    </div>
+                                </div>
+                                <span class="status" style="background:rgba(102,126,234,0.2);color:#9cc0ff;flex-shrink:0;">
+                                    ${r.source}
+                                </span>
+                            </div>
+                            ${r.description ? `<div style="font-size:13px;color:#d3deef;margin-top:8px;">${r.description}</div>` : ''}
+                        </div>
+                    `).join('');
+                }
+            } catch (e) {
+                document.getElementById('discoveryResults').innerHTML = 
+                    '<div class="muted">Error searching: ' + e + '</div>';
+            }
+        }
+
+        function showCreatePlan() {
+            const topic = prompt('Enter learning topic:');
+            if (!topic) return;
+            
+            fetch('/api/plans/generate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    topic: topic,
+                    user_context: {}
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                alert(`Plan created: ${data.topic}\nEstimated duration: ${data.estimated_weeks} weeks`);
+                loadPlans();
+                loadTimetable();
+            })
+            .catch(e => alert('Error creating plan: ' + e));
+        }
+
+        // Load on page load
+        loadStatus();
+        loadPlans();
+        loadTimetable();
+        loadLiveFocus();
+        
+        // Auto-refresh every 5 seconds for live data
+        setInterval(() => {
+            loadStatus();
+            loadLiveFocus();
+        }, 5000);
+
+        // Refresh plans and schedule less often
+        setInterval(() => {
+            loadPlans();
+            loadTimetable();
+        }, 30000);
+    </script>
+</body>
+</html>

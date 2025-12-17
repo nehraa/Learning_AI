@@ -1,20 +1,59 @@
-# 🚀 ENHANCED LEARNING CURATION SYSTEM
+# RFAI (Routine Focus AI)
 
-An AI-powered personalized learning platform that discovers research papers from ArXiv and 
-recommends free EdX courses. Uses reinforcement learning (LinUCB) to learn your preferences 
-and improve recommendations over time.
+RFAI is an AI-powered learning + routine system focused on time-blocked daily plans, background tracking, and adaptive pacing.
+
+## Run (one command)
+
+### macOS / Linux
+```bash
+./run.sh
+```
+
+### Windows
+```bat
+run.bat
+```
+
+## Configuration (.env)
+
+Create a `.env` file in the repo root. Supported keys:
+- `YOUTUBE_API_KEY` (or `youtube`)
+- `PERPLEXITY_API_KEY` (or `perplexity`)
+- `NOTION_API_KEY` (or `notion`)
+- `NOTION_DATABASE_ID`
+- `OLLAMA_BASE_URL` (optional)
+- `OLLAMA_MODEL` (optional)
+- `GEMINI_API_KEY` (or `gemini`; loaded for future use)
+
+## Disable daemons (optional)
+
+```bash
+NO_DAEMONS=1 ./run.sh
+```
+
+## Legacy
+
+The older demo app is preserved under `legacy/learning_ai_basic/` but is not part of the default run path.
+
+<!--
+
+# 🚀 RFAI (Routine Focus AI)
+
+An AI-powered learning + routine system that combines:
+- 3-hour daily learning plans (time-blocked)
+- background time tracking + focus detection
+- adaptive pacing (RL) + spaced repetition
+- multi-source discovery (YouTube / web search / local LLM via Ollama)
 
 ## 🎯 Features
 
-✅ **ArXiv Paper Discovery** - Automatically searches and downloads relevant papers
-✅ **EdX Course Recommendations** - Curated free courses from top universities
-✅ **LinUCB Algorithm** - Context-aware reinforcement learning for personalization
-✅ **LLM Summaries** - Automatic summaries and keyword extraction for each item
-✅ **Vector Database** - ChromaDB for efficient similarity search
-✅ **Beautiful Dashboard** - Modern web interface with dark/light modes
-✅ **Persistent Memory** - Learns your preferences over time
-✅ **Daily Automation** - Optional scheduled daily curation
-✅ **100% Free** - Uses only open-source tools and free APIs
+✅ **Daily 3-Hour Plans** - Time-blocked routines per day
+✅ **Time Tracking Daemon** - Logs active app time (best on macOS with PyObjC)
+✅ **Focus Detection Daemon** - Detects focus vs distraction (degrades gracefully)
+✅ **Adaptive Pace (RL)** - Adjusts difficulty/pace based on outcomes
+✅ **Spaced Repetition (SRS)** - Flashcards + review scheduling
+✅ **Multi-Source Discovery** - YouTube + Perplexity + Notion (optional)
+✅ **Local LLM (Ollama)** - Uses your local models when available
 
 ## 📋 What's Included
 
@@ -23,130 +62,65 @@ learning-system/
 ├── app.py                  # Main Flask backend (LinUCB + discovery)
 ├── index.html             # Web dashboard (HTML/CSS/JS)
 ├── requirements.txt       # Python dependencies
-├── setup.sh / setup.bat   # Initial setup script
-├── run.sh / run.bat       # Run the server
-└── data/                  # Created automatically
-    ├── papers/            # Downloaded PDFs
-    ├── vector_db/         # ChromaDB embeddings
-    └── user_preferences.json # Your ratings & preferences
-```
+# 🚀 RFAI (Routine Focus AI)
 
-## 🛠️ Setup (One-Time)
+RFAI is an AI-powered learning + routine system focused on **time-blocked daily plans**, **background tracking**, and **adaptive pacing**.
 
-### Option 1: Linux/Mac
-```bash
-# Make setup script executable and run it
-chmod +x setup.sh
-./setup.sh
+## One-command run
 
-# Then run the server
-chmod +x run.sh
-./run.sh
-```
-
-### Option 2: Windows
-```bash
-# Run setup
-setup.bat
-
-# Then run the server
-run.bat
-```
-
-### Option 3: Manual Setup
-```bash
-# Create virtual environment
-python3 -m venv venv
-
-# Activate it
-source venv/bin/activate  # Linux/Mac
-# OR
-venv\Scripts\activate.bat  # Windows
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run the app
-python app.py
-```
-
-## ▶️ Running the System
-
-Once setup is complete, just run:
-
-**Linux/Mac:**
+### macOS / Linux
 ```bash
 ./run.sh
 ```
 
-**Windows:**
-```bash
+### Windows
+```bat
 run.bat
 ```
 
-**Manual:**
+`run.sh`/`run.bat` will create and use a local virtualenv if needed, initialize the database, and start the RFAI server.
+
+## API
+
+- Health: `GET /health`
+- Status: `GET /api/status`
+- Generate plan: `POST /api/plans/generate`
+- List plans: `GET /api/plans`
+
+The server prints the local URL on startup (default port is 5000, but the runner will choose another port if 5000 is already in use).
+
+## Configuration (.env)
+
+Create a `.env` file in the repo root. The server loads it on startup.
+
+Canonical keys used by integrations:
+- `YOUTUBE_API_KEY`
+- `PERPLEXITY_API_KEY`
+- `NOTION_API_KEY`
+- `NOTION_DATABASE_ID`
+- `OLLAMA_BASE_URL` (optional)
+- `OLLAMA_MODEL` (optional)
+
+Shorthand keys are also accepted and normalized:
+- `youtube` → `YOUTUBE_API_KEY`
+- `perplexity` → `PERPLEXITY_API_KEY`
+- `notion` → `NOTION_API_KEY`
+- `gemini` → `GEMINI_API_KEY` (loaded for future use)
+
+## Data storage
+
+RFAI stores its SQLite DB under `~/.rfai/data/rfai.db`.
+
+## Disable daemons (optional)
+
+If you only want the API server:
 ```bash
-source venv/bin/activate  # Activate environment
-python app.py             # Start server
+NO_DAEMONS=1 ./run.sh
 ```
 
-## 🌐 Access the Dashboard
+## Legacy app
 
-Open your browser and go to:
-```
-http://localhost:5000
-```
-
-## 🎓 First Time Setup
-
-1. **Enter Your Interests** - Add 3-5 topics you want to learn about:
-   - Example: `machine learning`, `distributed systems`, `cryptography`
-
-2. **Get Recommendations** - Click "Load Recommendations" to:
-   - Search ArXiv for papers
-   - Find matching EdX courses
-   - Get AI-generated summaries
-   - Extract key learning points
-
-3. **Rate & Learn** - Rate each item (1-5 stars):
-   - System learns your preferences
-   - Next recommendations get better
-   - Ratings stored in your preferences
-
-## 📊 How It Works
-
-### Discovery Phase
-- Searches ArXiv API for papers matching your interests
-- Searches EdX database for free courses
-- Downloads paper metadata
-
-### Processing Phase
-- Generates embeddings using sentence-transformers
-- Stores in ChromaDB vector database
-- Extracts keywords and generates summaries
-
-### Recommendation Phase
-- LinUCB algorithm ranks items based on:
-  - Your past ratings
-  - Item similarity to your interests
-  - Exploration-exploitation balance
-- Presents top 5 recommendations daily
-
-### Learning Phase
-- You rate items (1-5 stars)
-- Ratings stored with timestamps
-- Algorithm learns your preferences
-- Next day: better recommendations
-
-## 🧠 Technology Stack
-
-| Component | Technology | Why |
-|-----------|-----------|-----|
-| Backend | Flask | Lightweight, simple |
-| ML Algorithm | LinUCB Bandit | Context-aware recommendations |
-| Embeddings | Sentence-Transformers | Fast, accurate (80MB model) |
-| Vector DB | ChromaDB | Lightweight, persistent |
-| Papers | ArXiv API | Free, comprehensive |
+The older “Learning_AI” demo app (the one that ran via `app.py`) is preserved under `legacy/learning_ai_basic/` but is no longer the default execution path.
 | Courses | EdX | Curated, free access |
 | LLM | Gemini (free tier) | Optional summaries |
 | Frontend | HTML/CSS/JS | No dependencies needed |
@@ -354,3 +328,5 @@ the better it gets at finding content you'll love.
 ---
 
 **Questions?** Check the logs in `app.log` or review the code comments in `app.py`.
+
+-->

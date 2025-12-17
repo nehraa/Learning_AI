@@ -14,6 +14,9 @@ from pathlib import Path
 # Add to path
 sys.path.insert(0, str(Path(__file__).parent))
 
+# Load environment variables from .env (if present) and normalize keys
+from rfai.config.env import load_env
+
 from database.init_db import init_database, get_db_connection
 from rfai.daemons.time_tracker import TimeTrackerDaemon
 from rfai.daemons.focus_detector import FocusDetectorDaemon
@@ -242,6 +245,9 @@ class RFAIServer:
 
 def main():
     """Main entry point"""
+    # Ensure .env is loaded before anything instantiates integrations
+    load_env(override=False)
+
     parser = argparse.ArgumentParser(description='RFAI - Routine Focus AI Server')
     parser.add_argument('--host', default='0.0.0.0', help='API host (default: 0.0.0.0)')
     parser.add_argument('--port', type=int, default=5000, help='API port (default: 5000)')
