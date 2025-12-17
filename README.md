@@ -1,39 +1,266 @@
-# RFAI (Routine Focus AI)
+# 🎓 RFAI (Routine Focus AI)
 
-RFAI is an AI-powered learning + routine system focused on time-blocked daily plans, background tracking, and adaptive pacing.
+> **Your Intelligent 3-Hour Daily Learning System**
 
-## Run (one command)
+RFAI is an AI-powered learning companion that helps you implement a structured 3-hour daily learning plan with personalized content recommendations, progress tracking, and adaptive pacing.
 
-### macOS / Linux
+## ✨ Key Features
+
+- 📅 **3-Hour Daily Plan** - Structured time blocks: YouTube (1h), Papers (1h), Movies (1.5h)
+- 🎯 **Smart Content Filtering** - Educational vs entertainment classification
+- 🎬 **Artistic Film Curation** - Film-school worthy movies, not just popular ones
+- 📊 **Visual Dashboard** - Progress charts, focus tracking, and statistics
+- 🧠 **Adaptive Learning** - RL-based difficulty adjustment (optional)
+- 🔒 **Privacy-First** - All data stays local, camera tracking is opt-in
+
+## 🚀 Quick Start (2 Minutes)
+
+### 1. Configure API Keys
+
+```bash
+# Copy example configuration
+cp .env.example .env
+
+# Edit and add your API keys
+nano .env
+```
+
+**Get Free API Keys:**
+- [YouTube API](https://console.cloud.google.com/apis/credentials) - For video recommendations
+- [Perplexity API](https://www.perplexity.ai/settings/api) - For web search
+- [OMDb API](https://www.omdbapi.com/apikey.aspx) - For movie data
+
+### 2. Customize Your Interests
+
+Edit `interests.json` with your learning preferences:
+- YouTube topics (Quantum Mechanics, Philosophy, etc.)
+- Research paper fields and ArXiv categories
+- Movie preferences (directors, genres, style)
+
+### 3. Run the Application
+
+**macOS / Linux:**
 ```bash
 ./run.sh
 ```
 
-### Windows
+**Windows:**
 ```bat
 run.bat
 ```
 
-## Configuration (.env)
+### 4. Open Dashboard
 
-Create a `.env` file in the repo root. Supported keys:
-- `YOUTUBE_API_KEY` (or `youtube`)
-- `PERPLEXITY_API_KEY` (or `perplexity`)
-- `NOTION_API_KEY` (or `notion`)
-- `NOTION_DATABASE_ID`
-- `OLLAMA_BASE_URL` (optional)
-- `OLLAMA_MODEL` (optional)
-- `GEMINI_API_KEY` (or `gemini`; loaded for future use)
+Navigate to: **http://localhost:5000/dashboard**
 
-## Disable daemons (optional)
+## 📖 How It Works
+
+### Your 3-Hour Daily Learning Plan
+
+RFAI implements a structured learning schedule based on `daily_3hr_plan.md`:
+
+| Time Block | Duration | Content | Purpose |
+|------------|----------|---------|---------|
+| **YouTube** | 1 hour | Educational entertainment | Animated history, philosophy, self-help |
+| **Papers** | 1 hour | Academic research | ArXiv papers on your topics |
+| **Movies** | 1-2 hours | Artistic films | Film-school quality cinema |
+
+### Content Intelligence
+
+**YouTube Filtering:**
+- ✅ Educational - Pure learning (lectures, tutorials)
+- ✅ Learning-Borderline - What you want (educational entertainment)
+- ❌ Entertainment - Excluded (vlogs, reactions, gaming)
+
+**Movie Classification:**
+- 🎬 Artistic - Film school worthy (Tarkovsky, Kubrick, etc.)
+- ⭐ Good Generic - Well-rated commercial films
+- 🚫 Pure Entertainment - Excluded
+
+**After each movie, the system prompts you to reflect:**
+- What was the central theme?
+- How did cinematography enhance the story?
+- What techniques stood out?
+- What did you learn?
+
+### Dashboard Features
+
+- 📊 **Time Allocation Chart** - Visual breakdown of daily hours
+- 📈 **Focus Over Time** - Track your attention levels
+- ✅ **Progress Tracker** - See completion towards 3-hour goal
+- 🎯 **Current Position** - Know your week and day in the plan
+- 📝 **Content Recommendations** - Direct links to videos, papers, films
+
+## 📚 Documentation
+
+- **[Complete Setup Guide](SETUP_GUIDE.md)** - Detailed configuration and troubleshooting
+- **[API Documentation](#api-endpoints)** - All available endpoints
+- **[Configuration Reference](#configuration)** - Full `.env` and `interests.json` options
+
+## 🔌 API Endpoints
+
+### Schedule & Content
+- `GET /api/schedule/daily` - Get today's 3-hour schedule
+- `GET /api/schedule/current-block` - Get active content block
+- `POST /api/content/rate` - Rate content (1-5 stars)
+- `POST /api/movie/post-review` - Submit movie review
+
+### Learning Plans
+- `GET /api/plans` - List all plans
+- `POST /api/plans/generate` - Generate new plan
+- `GET /api/plans/<id>/current-day` - Get current day
+
+### Activity & Stats
+- `GET /api/stats/daily` - Daily statistics
+- `GET /api/activity/today` - Activity logs
+- `GET /api/focus/current` - Current focus state
+
+## 🎯 Configuration
+
+### Environment Variables (.env)
+
+```bash
+# Required
+YOUTUBE_API_KEY=your_key
+PERPLEXITY_API_KEY=your_key
+OMDB_API_KEY=your_key
+
+# Optional
+NOTION_API_KEY=your_key
+GEMINI_API_KEY=your_key
+OLLAMA_BASE_URL=http://localhost:11434
+```
+
+### Learning Interests (interests.json)
+
+```json
+{
+  "youtube_interests": {
+    "topics": ["Quantum Mechanics", "Philosophy"],
+    "content_style": "learning_borderline_entertainment"
+  },
+  "research_paper_interests": {
+    "fields": ["Physics", "Neuroscience"],
+    "arxiv_categories": ["quant-ph", "q-bio.NC"]
+  },
+  "movie_interests": {
+    "style": "artistic_film_school",
+    "directors": ["Tarkovsky", "Kubrick"],
+    "post_viewing_review": true
+  }
+}
+```
+
+## 🛠️ Advanced Options
+
+### Disable Background Daemons
 
 ```bash
 NO_DAEMONS=1 ./run.sh
 ```
 
-## Legacy
+### Custom Database Location
 
-The older demo app is preserved under `legacy/learning_ai_basic/` but is not part of the default run path.
+```bash
+export RFAI_DB_PATH="/path/to/database.db"
+./run.sh
+```
+
+### Enable Debug Logging
+
+```bash
+DEBUG=1 ./run.sh
+```
+
+### Export Focus Data for ML Analysis
+
+```bash
+# Via API
+curl http://localhost:5000/api/activity/today > focus_data.json
+
+# Or click "Export Focus Data" in dashboard
+```
+
+## 📊 Data Collection
+
+RFAI collects data locally for your analysis:
+- Activity logs (apps, websites, duration)
+- Focus states (when daemons enabled)
+- Content ratings and reviews
+- Time allocation breakdown
+
+**All data stays on your machine.** Export anytime for your own ML experiments.
+
+## 🐛 Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| API keys not working | Check `.env` file, restart server |
+| Learning plan shows 0 hours | Verify `daily_3hr_plan.md` format |
+| No content recommendations | Test API keys, check `interests.json` |
+| Focus data empty | Enable daemons, check platform support |
+
+**Full troubleshooting guide:** [SETUP_GUIDE.md](SETUP_GUIDE.md)
+
+## 🔒 Privacy & Security
+
+- ✅ API keys never logged or printed
+- ✅ `.env` in `.gitignore` - safe from commits
+- ✅ Camera/screen tracking is **opt-in**
+- ✅ All data stored **locally**
+- ✅ No cloud uploads without explicit config
+
+## 📦 Dependencies
+
+Core dependencies are listed in `requirements.txt`:
+- Flask - API server
+- ArXiv - Paper search
+- Chart.js - Dashboard visualizations
+- ChromaDB - Vector storage (for advanced features)
+- Sentence Transformers - Content embeddings
+
+## 🗂️ Project Structure
+
+```
+Learning_AI/
+├── rfai/
+│   ├── api/           # API server
+│   ├── ai/            # AI components (scheduler, parser, RL)
+│   ├── integrations/  # YouTube, ArXiv, EdX, IMDb
+│   ├── ui/            # Dashboard UI
+│   └── config/        # Configuration loaders
+├── database/          # SQLite schema and init
+├── .env.example       # API key template
+├── interests.json     # User preferences
+├── daily_3hr_plan.md  # 52-week learning plan
+└── SETUP_GUIDE.md     # Complete setup docs
+```
+
+## 🎓 Legacy Version
+
+The original Learning_AI demo is preserved in `legacy/learning_ai_basic/` for reference.
+
+## 🤝 Contributing
+
+This is a personal learning system, but suggestions are welcome! Please ensure:
+- API keys remain secure
+- Privacy features stay opt-in
+- Documentation is updated
+
+## 📄 License
+
+MIT License - See [LICENSE](LICENSE) file
+
+## 🆘 Need Help?
+
+1. Read [SETUP_GUIDE.md](SETUP_GUIDE.md)
+2. Check `rfai.log` for errors
+3. Test API endpoints: http://localhost:5000/api/status
+4. Verify API keys are valid
+
+---
+
+**Made with 🧠 for structured, intentional learning**
 
 <!--
 
