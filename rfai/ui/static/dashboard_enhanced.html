@@ -553,7 +553,7 @@
         </div>
 
         <!-- Courses Section -->
-        <div class="card" style="margin-top: 20px;">
+        <div id="courses-card" class="card" style="margin-top: 20px;">
             <div class="card-title">🎓 Online Courses</div>
             <div id="courses-container">
                 <p style="color: #666; margin-bottom: 15px;">Explore structured learning paths from top platforms:</p>
@@ -629,10 +629,13 @@
             loadCurrentBlock();
             loadAttentionScore();
             loadSchedule();
+            loadDailyStats();
+            loadStudyPlanContent();
             
             // Auto-refresh
             setInterval(loadAttentionScore, 5000);
             setInterval(loadCurrentBlock, 30000);
+            setInterval(loadDailyStats, 60000); // Refresh stats every minute
         });
 
         async function loadCurrentBlock() {
@@ -809,8 +812,14 @@
                                     <img src="${video.thumbnail}" style="width: 100%; border-radius: 4px; margin-bottom: 8px;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%2290%22%3E%3Crect fill=%22%23ddd%22 width=%22120%22 height=%2290%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22%3EVideo%3C/text%3E%3C/svg%3E'">
                                     <div style="font-weight: 600; margin-bottom: 5px; font-size: 0.95em;">${video.title}</div>
                                     <div style="color: #666; font-size: 0.85em; margin-bottom: 4px;">${video.channel}</div>
-                                    <div style="color: #999; font-size: 0.8em;">${video.duration || 'N/A'} • ${video.views ? (video.views / 1000).toFixed(0) + 'K views' : ''}</div>
+                                    <div style="color: #999; font-size: 0.8em; margin-bottom: 8px;">${video.duration || 'N/A'} • ${video.views ? (video.views / 1000).toFixed(0) + 'K views' : ''}</div>
                                 </a>
+                                <div style="display: flex; gap: 5px; margin-top: 10px;">
+                                    <button onclick="rateContent('${video.id}', 5); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #4caf50; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">⭐</button>
+                                    <button onclick="rateContent('${video.id}', 4); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #8bc34a; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">👍</button>
+                                    <button onclick="rateContent('${video.id}', 3); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #ffc107; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">😐</button>
+                                    <button onclick="rateContent('${video.id}', 2); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #ff9800; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">👎</button>
+                                </div>
                             </div>
                         `;
                     });
@@ -832,9 +841,15 @@
                                 <a href="${paper.url}" target="_blank" style="text-decoration: none; color: #333;">
                                     <div style="font-weight: 600; margin-bottom: 8px; color: #1a3a5c;">${paper.title}</div>
                                     <div style="color: #666; font-size: 0.9em; margin-bottom: 8px;">${paper.authors.join(', ')}</div>
-                                    <div style="color: #777; font-size: 0.85em; line-height: 1.4;">${paper.abstract.substring(0, 200)}...</div>
+                                    <div style="color: #777; font-size: 0.85em; line-height: 1.4; margin-bottom: 8px;">${paper.abstract.substring(0, 200)}...</div>
                                     <div style="margin-top: 8px; font-size: 0.8em; color: #999;">${paper.published} • ${paper.categories ? paper.categories.join(', ') : ''}</div>
                                 </a>
+                                <div style="display: flex; gap: 5px; margin-top: 10px;">
+                                    <button onclick="rateContent('${paper.id}', 5); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #4caf50; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">⭐</button>
+                                    <button onclick="rateContent('${paper.id}', 4); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #8bc34a; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">👍</button>
+                                    <button onclick="rateContent('${paper.id}', 3); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #ffc107; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">😐</button>
+                                    <button onclick="rateContent('${paper.id}', 2); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #ff9800; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">👎</button>
+                                </div>
                             </div>
                         `;
                     });
@@ -861,15 +876,22 @@
                         const url = movie.url || '#';
                         
                         const safeTitle = title.replace(/[<>"'&]/g, '');
+                        const movieId = movie.id || movie.imdb_id || title.replace(/\s+/g, '_');
                         contentHtml += `
                             <div style="border: 1px solid #ddd; border-radius: 8px; padding: 12px; background: #f9f9f9;">
                                 <a href="${url}" target="_blank" style="text-decoration: none; color: #333;">
                                     <img src="${posterUrl}" style="width: 100%; border-radius: 4px; margin-bottom: 8px; min-height: 300px; object-fit: cover;" onerror="this.style.display='none'">
                                     <div style="font-weight: 600; margin-bottom: 5px;">${title}</div>
                                     <div style="color: #666; font-size: 0.9em; margin-bottom: 4px;">${director}</div>
-                                    <div style="color: #999; font-size: 0.85em;">${year} • ⭐ ${rating}</div>
-                                    <div style="color: #777; font-size: 0.8em; margin-top: 4px;">${runtime}</div>
+                                    <div style="color: #999; font-size: 0.85em; margin-bottom: 8px;">${year} • ⭐ ${rating}</div>
+                                    <div style="color: #777; font-size: 0.8em;">${runtime}</div>
                                 </a>
+                                <div style="display: flex; gap: 5px; margin-top: 10px;">
+                                    <button onclick="rateContent('${movieId}', 5); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #4caf50; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">⭐</button>
+                                    <button onclick="rateContent('${movieId}', 4); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #8bc34a; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">👍</button>
+                                    <button onclick="rateContent('${movieId}', 3); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #ffc107; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">😐</button>
+                                    <button onclick="rateContent('${movieId}', 2); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #ff9800; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">👎</button>
+                                </div>
                             </div>
                         `;
                     });
@@ -1194,6 +1216,202 @@
             } catch (error) {
                 console.error('Error syncing to Notion:', error);
                 statusDiv.innerHTML = '<p style="color: #f44;">Error syncing. Check console.</p>';
+            }
+        }
+
+        async function loadDailyStats() {
+            try {
+                const response = await fetch(`${API_BASE}/stats/daily`);
+                const data = await response.json();
+                
+                // Update focused minutes
+                const focusedSeconds = data.focus_breakdown?.FOCUSED || 0;
+                const focusedMinutes = Math.round(focusedSeconds / 60);
+                document.getElementById('stat-focused').textContent = focusedMinutes;
+                
+                // Calculate blocks completed today
+                const targetHours = data.learning_plan?.target_hours || 3;
+                const actualHours = data.learning_plan?.actual_hours || 0;
+                const completionPercent = data.learning_plan?.completion_percent || 0;
+                
+                // Update blocks done (based on completion percentage)
+                const blocksCompleted = Math.floor(completionPercent / 33); // Assuming 3 blocks per day
+                document.getElementById('stat-blocks').textContent = blocksCompleted;
+                
+                // Add more detailed stats section
+                updateDetailedStats(data);
+            } catch (error) {
+                console.error('Error loading daily stats:', error);
+            }
+        }
+
+        function updateDetailedStats(data) {
+            // Add a detailed stats section if it doesn't exist
+            const statsCard = document.querySelector('.stat-grid').parentElement;
+            let detailsDiv = document.getElementById('detailed-stats');
+            
+            if (!detailsDiv) {
+                detailsDiv = document.createElement('div');
+                detailsDiv.id = 'detailed-stats';
+                detailsDiv.style.marginTop = '20px';
+                detailsDiv.style.fontSize = '0.9em';
+                detailsDiv.style.color = '#666';
+                statsCard.appendChild(detailsDiv);
+            }
+            
+            const targetHours = data.learning_plan?.target_hours || 3;
+            const actualHours = data.learning_plan?.actual_hours || 0;
+            const completionPercent = data.learning_plan?.completion_percent || 0;
+            
+            detailsDiv.innerHTML = `
+                <div style="padding: 15px; background: #f9f9f9; border-radius: 8px;">
+                    <div style="margin-bottom: 10px;">
+                        <strong>Today's Progress:</strong> ${actualHours.toFixed(1)}h / ${targetHours}h (${completionPercent.toFixed(0)}%)
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <strong>Time Breakdown:</strong>
+                    </div>
+                    <div style="margin-left: 15px;">
+                        <div>📺 YouTube: ${data.time_allocation?.youtube || 0}h</div>
+                        <div>📄 Papers: ${data.time_allocation?.papers || 0}h</div>
+                        <div>🎬 Movies: ${data.time_allocation?.movies || 0}h</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadStudyPlanContent() {
+            try {
+                // Fetch YouTube videos for study plan
+                const youtubeRes = await fetch(`${API_BASE}/content/youtube-recommendations`);
+                const youtubeData = await youtubeRes.json();
+                const videos = youtubeData.videos || [];
+                
+                // Fetch papers for study plan
+                const papersRes = await fetch(`${API_BASE}/content/paper-recommendations`);
+                const papersData = await papersRes.json();
+                const papers = papersData.research_papers || papersData.papers || [];
+                
+                // Add study plan materials to a new section
+                addStudyPlanSection(videos, papers);
+            } catch (error) {
+                console.error('Error loading study plan content:', error);
+            }
+        }
+
+        function addStudyPlanSection(videos, papers) {
+            // Create a separate card for study plan materials
+            const coursesCard = document.querySelector('#courses-card');
+            
+            // Add study plan recommendations before courses card
+            let studyPlanCard = document.getElementById('study-plan-card');
+            if (!studyPlanCard) {
+                studyPlanCard = document.createElement('div');
+                studyPlanCard.id = 'study-plan-card';
+                studyPlanCard.className = 'card';
+                studyPlanCard.style.marginTop = '20px';
+                
+                // Insert before courses card
+                if (coursesCard) {
+                    coursesCard.parentNode.insertBefore(studyPlanCard, coursesCard);
+                }
+            }
+            
+            let contentHtml = `
+                <div class="card-title">📚 Study Materials from Your 3-Hour Daily Plan</div>
+                <div style="padding: 15px; background: #f0f8ff; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #667eea;">
+                    <strong>Current Week:</strong> Week 1 - Quantum Mechanics: Linear Algebra & Operators<br>
+                    <strong>Today's Focus:</strong> Day 1 - Vector Spaces & Hilbert Spaces (3 hours)<br>
+                    <div style="margin-top: 10px; font-size: 0.9em; color: #666;">
+                        Learning Objectives: Vector spaces, inner products, Hilbert space, wavefunctions
+                    </div>
+                </div>
+            `;
+            
+            // Display YouTube videos
+            if (videos && videos.length > 0) {
+                contentHtml += `
+                    <h4 style="margin: 20px 0 15px 0;">📺 Recommended Videos for Today</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; margin-bottom: 25px;">
+                `;
+                
+                videos.slice(0, 6).forEach(video => {
+                    contentHtml += `
+                        <div style="border: 1px solid #ddd; border-radius: 8px; padding: 12px; background: #f9f9f9;">
+                            <a href="${video.url}" target="_blank" style="text-decoration: none; color: #333;">
+                                <img src="${video.thumbnail}" style="width: 100%; border-radius: 4px; margin-bottom: 8px;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22120%22 height=%2290%22%3E%3Crect fill=%22%23ddd%22 width=%22120%22 height=%2290%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22%3EVideo%3C/text%3E%3C/svg%3E'">
+                                <div style="font-weight: 600; margin-bottom: 5px; font-size: 0.95em;">${video.title}</div>
+                                <div style="color: #666; font-size: 0.85em; margin-bottom: 4px;">${video.channel}</div>
+                                <div style="color: #999; font-size: 0.8em; margin-bottom: 8px;">${video.duration || 'N/A'} • ${video.views ? (video.views / 1000).toFixed(0) + 'K views' : ''}</div>
+                            </a>
+                            <div style="display: flex; gap: 5px; margin-top: 10px;">
+                                <button onclick="rateContent('${video.id}', 5); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #4caf50; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">⭐</button>
+                                <button onclick="rateContent('${video.id}', 4); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #8bc34a; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">👍</button>
+                                <button onclick="rateContent('${video.id}', 3); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #ffc107; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">😐</button>
+                                <button onclick="rateContent('${video.id}', 2); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #ff9800; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">👎</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                contentHtml += `</div>`;
+            }
+            
+            // Display research papers
+            if (papers && papers.length > 0) {
+                contentHtml += `
+                    <h4 style="margin: 20px 0 15px 0;">📄 Recommended Papers for Today</h4>
+                    <div style="display: grid; gap: 12px; margin-bottom: 25px;">
+                `;
+                
+                papers.slice(0, 4).forEach(paper => {
+                    contentHtml += `
+                        <div style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; background: #f9f9f9;">
+                            <a href="${paper.url}" target="_blank" style="text-decoration: none; color: #333;">
+                                <div style="font-weight: 600; margin-bottom: 8px; color: #1a3a5c;">${paper.title}</div>
+                                <div style="color: #666; font-size: 0.9em; margin-bottom: 8px;">${paper.authors.join(', ')}</div>
+                                <div style="color: #777; font-size: 0.85em; line-height: 1.4; margin-bottom: 8px;">${paper.abstract.substring(0, 200)}...</div>
+                                <div style="margin-top: 8px; font-size: 0.8em; color: #999;">${paper.published} • ${paper.categories ? paper.categories.join(', ') : ''}</div>
+                            </a>
+                            <div style="display: flex; gap: 5px; margin-top: 10px;">
+                                <button onclick="rateContent('${paper.id}', 5); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #4caf50; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">⭐</button>
+                                <button onclick="rateContent('${paper.id}', 4); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #8bc34a; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">👍</button>
+                                <button onclick="rateContent('${paper.id}', 3); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #ffc107; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">😐</button>
+                                <button onclick="rateContent('${paper.id}', 2); event.stopPropagation();" style="flex: 1; padding: 5px; border: none; background: #ff9800; color: white; border-radius: 4px; cursor: pointer; font-size: 0.75em;">👎</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                contentHtml += `</div>`;
+            }
+            
+            studyPlanCard.innerHTML = contentHtml;
+        }
+
+        async function rateContent(contentId, rating) {
+            try {
+                const response = await fetch(`${API_BASE}/content/rate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content_id: contentId,
+                        rating: rating,
+                        tags: ['study_plan', 'daily_material'],
+                        time_spent_seconds: 0
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert(`✅ Rating saved! You rated this ${rating}/5 stars.`);
+                } else {
+                    alert('❌ Failed to save rating');
+                }
+            } catch (error) {
+                console.error('Error rating content:', error);
+                alert('❌ Error saving rating');
             }
         }
     </script>
