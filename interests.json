@@ -1,0 +1,145 @@
+{
+  "user_profile": {
+    "name": "default_user",
+    "learning_style": "visual_and_practical",
+    "daily_hours": 3,
+    "preferred_difficulty": "intermediate"
+  },
+  "youtube_interests": {
+    "topics": [
+      "Quantum Mechanics",
+      "Organic Chemistry",
+      "Computational Neuroscience",
+      "Statistical Mechanics",
+      "CRISPR Gene Editing",
+      "Quantum Field Theory",
+      "Philosophy",
+      "Self-Help",
+      "Animated History"
+    ],
+    "preferred_channels": [
+      "3Blue1Brown",
+      "MIT OpenCourseWare",
+      "Crash Course",
+      "Kurzgesagt",
+      "Veritasium"
+    ],
+    "content_style": "learning_borderline_entertainment",
+    "keywords": [
+      "tutorial",
+      "explained",
+      "deep dive",
+      "introduction",
+      "animated",
+      "educational"
+    ],
+    "exclude_keywords": [
+      "vlog",
+      "reaction",
+      "gaming",
+      "entertainment only"
+    ]
+  },
+  "research_paper_interests": {
+    "fields": [
+      "Quantum Physics",
+      "Organic Chemistry",
+      "Neuroscience",
+      "Biophysics",
+      "Computational Biology",
+      "Machine Learning Theory"
+    ],
+    "keywords": [
+      "quantum mechanics",
+      "retrosynthesis",
+      "neural networks",
+      "CRISPR",
+      "protein folding",
+      "phase transitions"
+    ],
+    "arxiv_categories": [
+      "quant-ph",
+      "physics.bio-ph",
+      "q-bio.NC",
+      "cs.LG",
+      "cond-mat.stat-mech"
+    ],
+    "difficulty_level": "intermediate_to_advanced",
+    "max_papers_per_day": 3
+  },
+  "course_interests": {
+    "subjects": [
+      "Physics",
+      "Chemistry",
+      "Computer Science",
+      "Biology",
+      "Mathematics",
+      "Neuroscience"
+    ],
+    "providers": [
+      "edX",
+      "MIT OpenCourseWare",
+      "Coursera",
+      "Khan Academy"
+    ],
+    "course_types": [
+      "self-paced",
+      "video-based",
+      "project-based"
+    ],
+    "preferred_duration_weeks": "4-12"
+  },
+  "movie_interests": {
+    "style": "artistic_film_school",
+    "genres": [
+      "Art House",
+      "Foreign Cinema",
+      "Documentary",
+      "Classic Cinema",
+      "Experimental",
+      "Independent"
+    ],
+    "criteria": {
+      "artistic_merit": "high",
+      "cinematography": "excellent",
+      "narrative_complexity": "medium_to_high",
+      "avoid_purely_entertaining": true
+    },
+    "directors": [
+      "Andrei Tarkovsky",
+      "Ingmar Bergman",
+      "Akira Kurosawa",
+      "Stanley Kubrick",
+      "Terrence Malick",
+      "Christopher Nolan (artistic works)"
+    ],
+    "exclude_criteria": [
+      "generic blockbusters",
+      "pure action",
+      "romantic comedy"
+    ],
+    "daily_time_hours": 1.5,
+    "post_viewing_review": true
+  },
+  "learning_goals": {
+    "current_week": 1,
+    "current_day": 1,
+    "plan_file": "daily_3hr_plan.md",
+    "target_completion_weeks": 52,
+    "focus_areas": [
+      "Quantum Mechanics foundations",
+      "Organic Chemistry synthesis",
+      "Computational Neuroscience basics"
+    ]
+  },
+  "time_allocation": {
+    "total_daily_hours": 3,
+    "breakdown": {
+      "youtube_learning": 1.0,
+      "artistic_movies": 1.5,
+      "research_papers": 1.0
+    },
+    "flexible_allocation": true,
+    "allow_spillover": true
+  }
+}
