@@ -178,7 +178,7 @@
     "allow_spillover": true
   },
   "daily_schedule": {
-    "timezone": "America/Chicago",
+    "timezone": "Asia/Kolkata",
     "time_blocks": [
       {
         "name": "Science Learning Block",

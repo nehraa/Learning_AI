@@ -292,15 +292,73 @@ Create browser extension for in-app tracking
 
 **Your Routine Focus AI system is production-ready and actively monitoring your attention in real-time.**
 
+### Core Features
 - 🎯 Three distinct learning blocks with different content
 - 📊 Real-time attention monitoring with 6-signal multimodal detection
 - 💾 All data persisted for AI training
 - 🎨 Dynamic visual themes per block
 - 📈 Analytics showing user patterns and performance
 
-Start using it now by opening http://localhost:5001 in your browser!
+### NEW: Content & Progress Features
+- 📺 **Real Content Fetching**: YouTube videos, ArXiv papers, IMDB movies
+- 🤖 **AI Integration**: Perplexity/Gemini for study plan recommendations
+- 📝 **Progress Testing**: Generate quizzes, track learning progress
+- 🎯 **Smart Recommendations**: Content based on your study plan
+- 📊 **Progress Analytics**: View quiz scores, weak areas, improvement trends
+
+### Quick Start
+
+```bash
+# 1. Start the server
+python rfai_server.py
+
+# 2. Open dashboard
+open http://localhost:5001/static/dashboard_enhanced.html
+
+# 3. Test content fetching
+python test_content_and_progress.py
+```
+
+### What You'll See
+
+**Dashboard shows:**
+- Current time block with theme
+- Real YouTube videos (not just topics)
+- Research papers from ArXiv
+- Movie recommendations
+- Access control status
+
+**New API Endpoints:**
+- `GET /api/fetch/youtube/science` - Real science videos
+- `GET /api/fetch/papers` - ArXiv papers
+- `POST /api/fetch/study-plan-content` - AI recommendations
+- `POST /api/quiz/generate` - Create quiz
+- `GET /api/progress/summary` - View progress
+
+### Documentation
+
+- **[Content & Progress Guide](docs/CONTENT_PROGRESS_GUIDE.md)** - NEW! Full guide to content fetching and quizzes
+- **[Access Control Guide](docs/ACCESS_CONTROL_GUIDE.md)** - Soft-lock system explained
+- **[Setup Guide](SETUP_GUIDE.md)** - Installation and configuration
+
+### Next Steps
+
+1. **Add API Keys** (optional but recommended):
+   ```bash
+   export YOUTUBE_API_KEY="your_key"
+   export PERPLEXITY_API_KEY="your_key"
+   ```
+
+2. **Customize Study Plan**:
+   - Edit `interests.json` with your topics
+   - Use `/api/fetch/study-plan-content` to get AI recommendations
+
+3. **Track Progress**:
+   - Take quizzes after learning sessions
+   - Review progress summary monthly
 
 ---
 
-*Last Updated: 2025-12-17*  
-*System Status: ✅ FULLY OPERATIONAL*
+*Last Updated: 2024-12-17*  
+*System Status: ✅ FULLY OPERATIONAL*  
+*Version: 2.1 - Content & Progress Features Added*

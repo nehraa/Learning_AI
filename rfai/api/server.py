@@ -73,6 +73,11 @@ def create_app():
     app.content_fetcher = ContentFetcher()
     logger.info("Content fetcher initialized")
     
+    # Initialize progress tester for quizzes
+    from rfai.ai.progress_tester import ProgressTester
+    app.progress_tester = ProgressTester(app.config['RFAI_DB_PATH'])
+    logger.info("Progress tester initialized")
+    
     logger.info("RFAI API Server initialized")
 
     @app.route('/', methods=['GET'])
@@ -898,6 +903,59 @@ def create_app():
             logger.error(f"Error getting full schedule: {e}")
             return jsonify({'error': str(e)}), 500
     
+    @app.route('/api/schedule/override', methods=['POST'])
+    def set_manual_override():
+        """Manually override current time block"""
+        try:
+            data = request.json
+            block_name = data.get('block_name')  # None to clear override
+            
+            app.time_block_manager.set_manual_override(block_name)
+            
+            # Refresh current block
+            app.time_block_manager.current_block = app.time_block_manager._get_current_block()
+            
+            return jsonify({
+                'override_active': app.time_block_manager.manual_override_block is not None,
+                'current_block': app.time_block_manager.current_block.get('name') if app.time_block_manager.current_block else None,
+                'message': f"Override set to '{block_name}'" if block_name else "Override cleared"
+            })
+        except Exception as e:
+            logger.error(f"Error setting override: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/schedule/override', methods=['DELETE'])
+    def clear_manual_override():
+        """Clear manual override and return to automatic time detection"""
+        try:
+            app.time_block_manager.clear_override()
+            return jsonify({
+                'override_active': False,
+                'message': 'Manual override cleared'
+            })
+        except Exception as e:
+            logger.error(f"Error clearing override: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/schedule/available-blocks', methods=['GET'])
+    def get_available_blocks():
+        """Get list of all available time blocks for override"""
+        try:
+            schedule = app.time_block_manager.config.get('daily_schedule', {}).get('time_blocks', [])
+            blocks = [
+                {
+                    'name': block.get('name'),
+                    'content_type': block.get('content_type'),
+                    'icon': block.get('icon'),
+                    'duration_hours': block.get('duration_hours')
+                }
+                for block in schedule
+            ]
+            return jsonify({'blocks': blocks})
+        except Exception as e:
+            logger.error(f"Error getting available blocks: {e}")
+            return jsonify({'error': str(e)}), 500
+    
     @app.route('/api/content/youtube-recommendations', methods=['GET'])
     def get_youtube_recommendations():
         """Get YouTube video recommendations for current block"""
@@ -1586,6 +1644,69 @@ def create_app():
             })
         except Exception as e:
             logger.error(f"Error fetching current block content: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    # ============================================================================
+    # QUIZ & PROGRESS TESTING
+    # ============================================================================
+    
+    @app.route('/api/quiz/generate', methods=['POST'])
+    def generate_quiz():
+        """Generate a quiz for a topic"""
+        try:
+            data = request.json
+            topic = data.get('topic')
+            difficulty = data.get('difficulty', 'medium')
+            num_questions = data.get('num_questions', 10)
+            
+            if not topic:
+                return jsonify({'error': 'topic required'}), 400
+            
+            quiz = app.progress_tester.generate_quiz(
+                topic=topic,
+                difficulty=difficulty,
+                num_questions=num_questions
+            )
+            
+            return jsonify(quiz)
+        except Exception as e:
+            logger.error(f"Error generating quiz: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/quiz/<quiz_id>', methods=['GET'])
+    def get_quiz(quiz_id):
+        """Get quiz by ID"""
+        try:
+            quiz = app.progress_tester._load_quiz(quiz_id)
+            if not quiz:
+                return jsonify({'error': 'Quiz not found'}), 404
+            return jsonify(quiz)
+        except Exception as e:
+            logger.error(f"Error loading quiz: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/quiz/<quiz_id>/submit', methods=['POST'])
+    def submit_quiz(quiz_id):
+        """Submit quiz answers and get results"""
+        try:
+            data = request.json
+            answers = data.get('answers', {})
+            
+            results = app.progress_tester.submit_quiz_answers(quiz_id, answers)
+            return jsonify(results)
+        except Exception as e:
+            logger.error(f"Error submitting quiz: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/progress/summary', methods=['GET'])
+    def get_progress_summary():
+        """Get learning progress summary"""
+        try:
+            topic = request.args.get('topic')
+            summary = app.progress_tester.get_progress_summary(topic=topic)
+            return jsonify(summary)
+        except Exception as e:
+            logger.error(f"Error getting progress summary: {e}")
             return jsonify({'error': str(e)}), 500
     
     # ============================================================================

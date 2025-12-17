@@ -1,17 +1,37 @@
 # 🎓 RFAI (Routine Focus AI)
 
-> **Your Intelligent 3-Hour Daily Learning System**
+> **Your Intelligent Time-Block Learning System with Real Content & Progress Tracking**
 
-RFAI is an AI-powered learning companion that helps you implement a structured 3-hour daily learning plan with personalized content recommendations, progress tracking, and adaptive pacing.
+RFAI is an AI-powered learning companion that structures your day into focused learning blocks, fetches actual educational content, and tracks your progress through quizzes and analytics.
 
-## ✨ Key Features
+## 🎉 What's New (v2.1)
 
-- 📅 **3-Hour Daily Plan** - Structured time blocks: YouTube (1h), Papers (1h), Movies (1.5h)
-- 🎯 **Smart Content Filtering** - Educational vs entertainment classification
-- 🎬 **Artistic Film Curation** - Film-school worthy movies, not just popular ones
-- 📊 **Visual Dashboard** - Progress charts, focus tracking, and statistics
-- 🧠 **Adaptive Learning** - RL-based difficulty adjustment (optional)
-- 🔒 **Privacy-First** - All data stays local, camera tracking is opt-in
+### ✅ Real Content Fetching
+- **YouTube Videos**: Actual videos from YouTube API (not just topics!)
+- **Research Papers**: Real papers from ArXiv based on your interests
+- **Movies**: Curated recommendations from IMDB
+- **Auto-Display**: Content shows automatically on dashboard per time block
+
+### ✅ AI-Powered Study Plans
+- **Perplexity Integration**: Get personalized recommendations from your study plan
+- **Smart Discovery**: AI finds best videos, papers, books for your goals
+- **Context-Aware**: Recommendations adapt to your learning progress
+
+### ✅ Progress Testing & Quizzes
+- **Quiz Generation**: Create tests for any topic (Quantum Computing, ML, etc.)
+- **Auto-Grading**: Instant feedback with explanations
+- **Progress Tracking**: View scores, weak areas, improvement trends
+- **Subject Analytics**: Track progress per topic
+
+## ✨ Core Features
+
+- ⏰ **Time-Block System** - 3 daily blocks: Science (3h), Self-Help (1h), Movies (1.5h)
+- 🔒 **Soft-Lock Access Control** - Content restricted during active blocks for focus
+- 📹 **Multimodal Attention** - Camera, mic, keyboard, mouse tracking
+- 🎨 **Dynamic Themes** - Visual themes change per time block
+- 📊 **Real-Time Dashboard** - Shows content, attention score, progress
+- 💾 **Session Management** - Track learning sessions with analytics
+- 🔒 **Privacy-First** - All data local, camera/mic optional
 
 ## 🚀 Quick Start (2 Minutes)
 

@@ -30,6 +30,7 @@ class TimeBlockContentManager:
         
         self.config_path = config_path
         self.config = self._load_config()
+        self.manual_override_block = None  # Manual override
         self.current_block = self._get_current_block()
         
     def _load_config(self) -> Dict:
@@ -48,8 +49,21 @@ class TimeBlockContentManager:
         Returns:
             Current time block dict or None if no block active
         """
+        # Check for manual override first
+        if self.manual_override_block:
+            return self.manual_override_block
+        
         try:
-            now = datetime.now()
+            # Get timezone from config
+            timezone_str = self.config.get('daily_schedule', {}).get('timezone', 'UTC')
+            
+            # Import timezone support
+            from datetime import timezone as tz
+            import pytz
+            
+            # Get current time in configured timezone
+            local_tz = pytz.timezone(timezone_str)
+            now = datetime.now(local_tz)
             current_time = now.strftime("%H:%M")
             
             schedule = self.config.get('daily_schedule', {}).get('time_blocks', [])
@@ -65,7 +79,46 @@ class TimeBlockContentManager:
             return None
         except Exception as e:
             logger.debug(f"Error determining time block: {e}")
+            # Fallback to UTC if timezone fails
+            try:
+                now = datetime.now()
+                current_time = now.strftime("%H:%M")
+                schedule = self.config.get('daily_schedule', {}).get('time_blocks', [])
+                for block in schedule:
+                    if block.get('start_time') <= current_time <= block.get('end_time'):
+                        return block
+            except:
+                pass
             return None
+    
+    def set_manual_override(self, block_name: Optional[str] = None):
+        """
+        Manually override the current time block
+        
+        Args:
+            block_name: Name of block to activate (e.g., "Science Learning Block")
+                       or None to clear override
+        """
+        if block_name is None:
+            self.manual_override_block = None
+            logger.info("Manual override cleared - using automatic time detection")
+            return
+        
+        # Find the block by name
+        schedule = self.config.get('daily_schedule', {}).get('time_blocks', [])
+        for block in schedule:
+            if block.get('name') == block_name:
+                self.manual_override_block = block
+                self.current_block = block
+                logger.info(f"Manual override set to: {block_name}")
+                return
+        
+        logger.warning(f"Block '{block_name}' not found in schedule")
+    
+    def clear_override(self):
+        """Clear manual override and return to automatic time detection"""
+        self.set_manual_override(None)
+        self.current_block = self._get_current_block()
     
     def get_block_info(self) -> Dict:
         """
