@@ -1,4 +1,4 @@
 @echo off
-call venv\Scripts\activate.bat
-python app.py
-pause
+REM Thin wrapper - delegates to organized scripts folder
+cd /d "%~dp0"
+call scripts\run.bat %*
