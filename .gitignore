@@ -181,4 +181,4 @@ cython_debug/
 .cursorindexingignore
 
 # Legacy/basic app artifacts
-data/vector_db/
+data/vector_db/keys
