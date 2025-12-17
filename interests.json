@@ -6,38 +6,64 @@
     "preferred_difficulty": "intermediate"
   },
   "youtube_interests": {
-    "topics": [
+    "science_topics": [
       "Quantum Mechanics",
       "Organic Chemistry",
       "Computational Neuroscience",
       "Statistical Mechanics",
       "CRISPR Gene Editing",
-      "Quantum Field Theory",
-      "Philosophy",
-      "Self-Help",
-      "Animated History"
+      "Quantum Field Theory"
     ],
-    "preferred_channels": [
+    "self_help_topics": [
+      "Self-Help",
+      "Personal Development",
+      "Psychology",
+      "Philosophy",
+      "Book Summaries",
+      "Animated History",
+      "Stoicism",
+      "Cognitive Biases"
+    ],
+    "science_channels": [
       "3Blue1Brown",
       "MIT OpenCourseWare",
       "Crash Course",
-      "Kurzgesagt",
-      "Veritasium"
+      "Veritasium",
+      "PBS Space Time"
     ],
-    "content_style": "learning_borderline_entertainment",
-    "keywords": [
+    "self_help_channels": [
+      "Kurzgesagt",
+      "Crash Course Philosophy",
+      "FightMediocrity",
+      "The School of Life",
+      "TED-Ed",
+      "Academind"
+    ],
+    "science_keywords": [
       "tutorial",
       "explained",
       "deep dive",
       "introduction",
+      "mathematical",
+      "derivation"
+    ],
+    "self_help_keywords": [
+      "book summary",
+      "summary",
+      "self help",
+      "psychology",
+      "philosophy",
       "animated",
-      "educational"
+      "explained",
+      "lessons",
+      "biography"
     ],
     "exclude_keywords": [
       "vlog",
       "reaction",
       "gaming",
-      "entertainment only"
+      "pure entertainment",
+      "mukbang"
     ]
   },
   "research_paper_interests": {
@@ -133,13 +159,79 @@
     ]
   },
   "time_allocation": {
-    "total_daily_hours": 3,
+    "total_daily_hours": 5.5,
     "breakdown": {
-      "youtube_learning": 1.0,
-      "artistic_movies": 1.5,
-      "research_papers": 1.0
+      "science_learning": {
+        "hours": 3.0,
+        "description": "Daily 3-hour science learning plan (Quantum Mechanics, Chemistry, etc.)"
+      },
+      "self_help_youtube": {
+        "hours": 1.0,
+        "description": "Philosophy, psychology, book summaries, animated history"
+      },
+      "artistic_movies": {
+        "hours": 1.5,
+        "description": "Film-school worthy cinema with post-viewing reflection"
+      }
     },
     "flexible_allocation": true,
     "allow_spillover": true
+  },
+  "daily_schedule": {
+    "timezone": "America/Chicago",
+    "time_blocks": [
+      {
+        "name": "Science Learning Block",
+        "start_time": "09:00",
+        "end_time": "12:00",
+        "duration_hours": 3,
+        "content_type": "science_youtube_and_papers",
+        "theme": "dark_blue",
+        "icon": "🔬"
+      },
+      {
+        "name": "Self-Help & Philosophy",
+        "start_time": "13:00",
+        "end_time": "14:00",
+        "duration_hours": 1,
+        "content_type": "self_help_youtube",
+        "theme": "warm_orange",
+        "icon": "🧠"
+      },
+      {
+        "name": "Movie & Reflection",
+        "start_time": "18:00",
+        "end_time": "19:30",
+        "duration_hours": 1.5,
+        "content_type": "artistic_movies",
+        "theme": "cinema_purple",
+        "icon": "🎬"
+      }
+    ],
+    "attentiveness_threshold": 0.7,
+    "pause_if_distracted": true
+  },
+  "visual_themes": {
+    "dark_blue": {
+      "primary": "#1a3a5c",
+      "secondary": "#4a7ba7",
+      "accent": "#00d4ff",
+      "text": "#ffffff",
+      "description": "Deep focus color for science learning"
+    },
+    "warm_orange": {
+      "primary": "#8b4513",
+      "secondary": "#d2691e",
+      "accent": "#ff8c00",
+      "text": "#ffffff",
+      "description": "Warm, introspective for philosophy & self-help"
+    },
+    "cinema_purple": {
+      "primary": "#2c1a4d",
+      "secondary": "#5c3d8f",
+      "accent": "#ff00ff",
+      "text": "#ffffff",
+      "description": "Cinematic feel for movies"
+    }
   }
 }

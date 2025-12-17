@@ -14,6 +14,8 @@ CREATE TABLE IF NOT EXISTS time_logs (
   actual_app TEXT,
   actual_urls TEXT,  -- JSON array
   files_modified TEXT,  -- JSON array
+  page_title TEXT,  -- Currently viewed page/document title
+  page_info_json TEXT,  -- JSON: {page_title, domain, app, url}
   focus_state TEXT,  -- FOCUSED|ACTIVE|DISTRACTED|INACTIVE
   focus_confidence REAL,
   duration_seconds INTEGER,
@@ -257,6 +259,79 @@ CREATE TABLE IF NOT EXISTS daemon_status (
   restart_count INTEGER DEFAULT 0
 );
 
+-- Attention Monitoring
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS attention_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id TEXT NOT NULL,
+  timestamp DATETIME NOT NULL,
+  state TEXT NOT NULL,  -- FOCUSED|ACTIVE|DISTRACTED|INACTIVE|TAKING_BREAK
+  score REAL,  -- 0-100 attention score
+  confidence REAL,  -- 0-1 confidence in score
+  trend REAL,  -- positive = improving, negative = declining
+  signals_json TEXT,  -- JSON: {camera, microphone, keyboard, mouse, window, cpu}
+  capabilities_json TEXT,  -- JSON: {camera, microphone, system}
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS time_block_sessions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  block_name TEXT NOT NULL,  -- "Science Learning Block", "Self-Help", etc.
+  block_type TEXT NOT NULL,  -- science_youtube_and_papers|self_help_youtube|artistic_movies
+  start_time DATETIME NOT NULL,
+  end_time DATETIME,
+  goal_duration_minutes INTEGER,
+  actual_duration_minutes INTEGER,
+  attention_average REAL,  -- Average attention during session
+  content_consumed TEXT,  -- JSON: {videos: [...], papers: [...], movies: [...]}
+  session_notes TEXT,
+  completed BOOLEAN DEFAULT FALSE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Time Block Access Control (Soft Lock System)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS block_access_control (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  block_name TEXT NOT NULL,
+  block_type TEXT NOT NULL,
+  is_active BOOLEAN DEFAULT FALSE,  -- TRUE when block time is active
+  locked BOOLEAN DEFAULT FALSE,  -- TRUE when user is in active block and hasn't met goal
+  required_attention_threshold REAL DEFAULT 0.7,  -- Must reach 70% attention
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+  allowed_content_types TEXT,  -- JSON: ["youtube_topics", "papers"] or ["movies"] etc
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- User Activity During Blocks (for analytics)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS block_activity_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id INTEGER NOT NULL,
+  timestamp DATETIME NOT NULL,
+  action TEXT,  -- "content_view", "pause", "resume", "distraction_detected"
+  content_type TEXT,  -- "youtube", "paper", "movie"
+  page_title TEXT,
+  attention_score REAL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (session_id) REFERENCES time_block_sessions(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS session_content_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  session_id INTEGER NOT NULL,
+  content_id TEXT NOT NULL,
+  content_type TEXT,  -- youtube|paper|movie
+  title TEXT,
+  metadata_json TEXT,  -- JSON with source, duration, etc.
+  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (session_id) REFERENCES time_block_sessions(id) ON DELETE CASCADE
+);
+
 -- Indexes for Performance
 -- ============================================
 
@@ -284,5 +359,6 @@ INSERT OR IGNORE INTO system_config (key, value, description) VALUES
 INSERT OR IGNORE INTO daemon_status (daemon_name, status, last_heartbeat) VALUES
   ('time_tracker', 'stopped', datetime('now')),
   ('focus_detector', 'stopped', datetime('now')),
+  ('attention_monitor', 'stopped', datetime('now')),
   ('activity_logger', 'stopped', datetime('now')),
   ('routine_guard', 'stopped', datetime('now'));

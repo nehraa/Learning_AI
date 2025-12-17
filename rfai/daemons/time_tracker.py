@@ -1,15 +1,18 @@
 """
-Time Tracker Daemon - Logs activity and app usage
+Time Tracker Daemon - Logs activity and app usage with page tracking
 Cross-platform with platform-specific implementations
+Captures: app name, window title, browser URL/page, focus state, time spent
 """
 
 import time
 import uuid
 import logging
 import platform
+import json
+import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 import sqlite3
 
 logger = logging.getLogger(__name__)
@@ -193,27 +196,80 @@ class TimeTrackerDaemon:
             "process_name": "unknown"
         }
     
+    def get_page_info(self, window_info: Dict[str, str]) -> Dict[str, str]:
+        """
+        Extract page/URL info from window title
+        Handles browser tabs (Chrome, Safari, Firefox, Edge)
+        """
+        try:
+            window_title = window_info.get('window_title', '')
+            app_name = window_info.get('app_name', '')
+            
+            # Browser detection and page extraction
+            if any(browser in app_name.lower() for browser in ['chrome', 'chromium', 'brave']):
+                # Format: "Page Title — Google Chrome"
+                if ' — ' in window_title:
+                    page_title = window_title.split(' — ')[0].strip()
+                    return {'page_title': page_title, 'app': 'Chrome'}
+                return {'page_title': window_title, 'app': 'Chrome'}
+            
+            elif 'safari' in app_name.lower():
+                # Safari format: "Page Title — domain.com"
+                if ' — ' in window_title:
+                    page_title = window_title.split(' — ')[0].strip()
+                    domain = window_title.split(' — ')[-1].strip()
+                    return {'page_title': page_title, 'domain': domain, 'app': 'Safari'}
+                return {'page_title': window_title, 'app': 'Safari'}
+            
+            elif 'firefox' in app_name.lower():
+                # Firefox format: "Page Title — Mozilla Firefox"
+                if ' — ' in window_title:
+                    page_title = window_title.split(' — ')[0].strip()
+                    return {'page_title': page_title, 'app': 'Firefox'}
+                return {'page_title': window_title, 'app': 'Firefox'}
+            
+            elif 'edge' in app_name.lower():
+                # Edge format: "Page Title - Microsoft Edge"
+                if ' - ' in window_title:
+                    page_title = window_title.split(' - ')[0].strip()
+                    return {'page_title': page_title, 'app': 'Edge'}
+                return {'page_title': window_title, 'app': 'Edge'}
+            
+            else:
+                # Non-browser app - use window title as page name
+                return {'page_title': window_title, 'app': app_name}
+        
+        except Exception as e:
+            logger.debug(f"Error extracting page info: {e}")
+            return {'page_title': window_info.get('window_title', 'unknown'), 'app': window_info.get('app_name', 'unknown')}
+    
     def log_activity(self, window_info: Dict[str, str]):
-        """Log activity to database"""
+        """Log activity to database with page tracking"""
         log_id = str(uuid.uuid4())
         timestamp = datetime.now()
+        
+        # Extract page/URL info
+        page_info = self.get_page_info(window_info)
         
         try:
             conn = sqlite3.connect(str(self.db_path))
             cursor = conn.cursor()
             
+            # Store both app and page info
             cursor.execute("""
                 INSERT INTO time_logs (
                     id, timestamp, actual_app, duration_seconds, 
-                    focus_state, focus_confidence
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    focus_state, focus_confidence, page_title, page_info_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """, (
                 log_id,
                 timestamp,
                 window_info['app_name'],
                 self.interval,
                 'ACTIVE',  # Default, will be updated by focus detector
-                0.5
+                0.5,
+                page_info.get('page_title', ''),
+                json.dumps(page_info)
             ))
             
             conn.commit()

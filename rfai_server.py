@@ -20,6 +20,7 @@ from rfai.config.env import load_env
 from database.init_db import init_database, get_db_connection
 from rfai.daemons.time_tracker import TimeTrackerDaemon
 from rfai.daemons.focus_detector import FocusDetectorDaemon
+from rfai.daemons.attention_monitor import AttentionMonitorDaemon
 from rfai.api.server import create_app
 
 # Configure logging
@@ -129,6 +130,23 @@ class RFAIServer:
             logger.info("✅ Focus Detector daemon started")
         except Exception as e:
             logger.error(f"❌ Failed to start Focus Detector: {e}")
+        
+        # Attention Monitor Daemon (NEW - multimodal with camera/mic)
+        try:
+            self.daemons['attention_monitor'] = AttentionMonitorDaemon(
+                db_path=self.db_path,
+                interval_seconds=5
+            )
+            thread = threading.Thread(
+                target=self.daemons['attention_monitor'].run,
+                daemon=True,
+                name="AttentionMonitor"
+            )
+            thread.start()
+            self.daemon_threads['attention_monitor'] = thread
+            logger.info("✅ Attention Monitor daemon started (camera, mic, system signals)")
+        except Exception as e:
+            logger.error(f"❌ Failed to start Attention Monitor: {e}")
         
         # Update daemon status in database
         try:
