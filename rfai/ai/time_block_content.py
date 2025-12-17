@@ -174,12 +174,14 @@ class TimeBlockContentManager:
     def get_youtube_content(self) -> Dict:
         """
         Get YouTube content recommendations based on current block
+        If no block active, returns combined recommendations from all blocks
         
         Returns:
             Dict with video search queries and channel recommendations
         """
         if not self.current_block:
-            return {'error': 'No active learning block'}
+            # Return combined recommendations from all blocks
+            return self._get_all_youtube_content()
         
         content_type = self.current_block.get('content_type')
         
@@ -227,19 +229,19 @@ class TimeBlockContentManager:
     def get_movie_content(self) -> Dict:
         """
         Get movie recommendations for cinema block
+        If no block active, returns movie recommendations anyway
         
         Returns:
             Dict with movie selection criteria
         """
-        if not self.current_block:
-            return {'error': 'No active learning block'}
-        
-        content_type = self.current_block.get('content_type')
+        content_type = None
+        if self.current_block:
+            content_type = self.current_block.get('content_type')
         
         if content_type == 'artistic_movies':
             movies = self.config.get('movie_interests', {})
             return {
-                'block': self.current_block.get('name'),
+                'block': self.current_block.get('name') if self.current_block else 'All Blocks',
                 'type': 'artistic_cinema',
                 'genres': movies.get('genres', []),
                 'directors': movies.get('directors', []),
@@ -257,24 +259,44 @@ class TimeBlockContentManager:
                 }
             }
         else:
-            return {'error': 'Movie block not currently active'}
+            # Return movie recommendations even if no block active
+            movies = self.config.get('movie_interests', {})
+            return {
+                'block': self.current_block.get('name') if self.current_block else 'All Blocks',
+                'type': 'artistic_cinema',
+                'genres': movies.get('genres', []),
+                'directors': movies.get('directors', []),
+                'criteria': movies.get('criteria', {}),
+                'daily_time_hours': movies.get('daily_time_hours', 1.5),
+                'post_viewing_review': {
+                    'enabled': movies.get('post_viewing_review', True),
+                    'questions': [
+                        'What was the central theme of this film?',
+                        'How did cinematography enhance the storytelling?',
+                        'What techniques or artistic choices stood out?',
+                        'What did you learn from watching this?',
+                        'How did it change your perspective?'
+                    ]
+                }
+            }
+        
     
     def get_papers_content(self) -> Dict:
         """
         Get research paper recommendations
+        If no block active, returns paper recommendations anyway
         
         Returns:
             Dict with ArXiv search parameters
         """
-        if not self.current_block:
-            return {'error': 'No active learning block'}
-        
-        content_type = self.current_block.get('content_type')
+        content_type = None
+        if self.current_block:
+            content_type = self.current_block.get('content_type')
         
         if content_type == 'science_youtube_and_papers':
             papers = self.config.get('research_paper_interests', {})
             return {
-                'block': self.current_block.get('name'),
+                'block': self.current_block.get('name') if self.current_block else 'Science Block',
                 'type': 'research_papers',
                 'fields': papers.get('fields', []),
                 'arxiv_categories': papers.get('arxiv_categories', []),
@@ -284,7 +306,18 @@ class TimeBlockContentManager:
                 'reading_time_per_paper_minutes': 20
             }
         else:
-            return {'error': 'Paper reading not in current block'}
+            # Return paper recommendations even if no active science block
+            papers = self.config.get('research_paper_interests', {})
+            return {
+                'block': self.current_block.get('name') if self.current_block else 'All Blocks',
+                'type': 'research_papers',
+                'fields': papers.get('fields', []),
+                'arxiv_categories': papers.get('arxiv_categories', []),
+                'keywords': papers.get('keywords', []),
+                'difficulty_level': papers.get('difficulty_level', 'intermediate'),
+                'max_papers_per_day': papers.get('max_papers_per_day', 3),
+                'reading_time_per_paper_minutes': 20
+            }
     
     def _generate_search_queries(self, topics: List[str], keywords: List[str]) -> List[str]:
         """
@@ -401,4 +434,43 @@ class TimeBlockContentManager:
             
             return None
         except Exception:
-            return None
+            return None    
+    def _get_all_youtube_content(self) -> Dict:
+        """
+        Get combined YouTube recommendations from all blocks when no block is active
+        
+        Returns:
+            Dict with combined video recommendations
+        """
+        all_topics = []
+        all_channels = []
+        all_keywords = []
+        
+        # Science block content
+        all_topics.extend(self.config.get('youtube_interests', {}).get('science_topics', []))
+        all_channels.extend(self.config.get('youtube_interests', {}).get('science_channels', []))
+        all_keywords.extend(self.config.get('youtube_interests', {}).get('science_keywords', []))
+        
+        # Self-help block content
+        all_topics.extend(self.config.get('youtube_interests', {}).get('self_help_topics', []))
+        all_channels.extend(self.config.get('youtube_interests', {}).get('self_help_channels', []))
+        all_keywords.extend(self.config.get('youtube_interests', {}).get('self_help_keywords', []))
+        
+        return {
+            'block': 'All Blocks - No Specific Block Active',
+            'type': 'combined_learning',
+            'topics': list(set(all_topics)),  # Remove duplicates
+            'channels': list(set(all_channels)),
+            'keywords': list(set(all_keywords)),
+            'search_queries': self._generate_search_queries(
+                list(set(all_topics)), 
+                list(set(all_keywords))
+            ),
+            'quality_indicators': [
+                'Has transcript',
+                'Educational content',
+                'Clear explanations',
+                'Actionable insights'
+            ],
+            'note': 'Showing recommendations from all time blocks'
+        }

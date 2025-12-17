@@ -160,28 +160,96 @@ class ContentFetcher:
         Fetch movie recommendations
         
         Returns:
-            List of movie dicts with title, director, year, imdb_rating
+            List of movie dicts with title, director, year, imdb_rating, poster_url
         """
-        if not self.imdb_client:
-            return self._get_sample_movies()
+        if not self.imdb_client or not self.imdb_client.api_key:
+            logger.warning("IMDB client not configured - using artistic film search")
+            return self._fetch_movies_via_artistic_search()
         
         try:
             directors = self.config.get('movie_interests', {}).get('directors', [])
             genres = self.config.get('movie_interests', {}).get('genres', [])
             
             movies = []
-            for director in directors[:3]:
-                results = self.imdb_client.search_by_director(
-                    director=director,
-                    min_rating=7.0,
-                    max_results=max_results // 3
-                )
-                movies.extend(results)
+            seen_ids = set()
+            
+            # Search by each director
+            for director in directors[:3]:  # Top 3 directors
+                try:
+                    results = self.imdb_client.search_by_director(
+                        director=director,
+                        min_rating=7.0,
+                        max_results=max_results // 2
+                    )
+                    for m in results:
+                        if m.get('imdb_id') not in seen_ids:
+                            seen_ids.add(m.get('imdb_id'))
+                            movies.append(self._normalize_movie(m))
+                except Exception as e:
+                    logger.warning(f"Error searching director {director}: {e}")
+                    continue
+            
+            if not movies:
+                logger.warning("Director search returned no results, trying artistic films")
+                return self._fetch_movies_via_artistic_search()
             
             return movies[:max_results]
         except Exception as e:
             logger.error(f"Error fetching movies: {e}")
-            return self._get_sample_movies()
+            return self._fetch_movies_via_artistic_search()
+    
+    def _fetch_movies_via_artistic_search(self) -> List[Dict]:
+        """
+        Fallback: Fetch movies using artistic film search
+        """
+        try:
+            if not self.imdb_client or not self.imdb_client.api_key:
+                return self._get_sample_movies()
+            
+            movies = self.imdb_client.search_artistic_films(max_results=10, min_rating=7.0)
+            return [self._normalize_movie(m) for m in movies]
+        except Exception as e:
+            logger.error(f"Artistic search failed: {e}")
+            return self._get_sample_movies_curated()
+    
+    def _normalize_movie(self, movie: Dict) -> Dict:
+        """
+        Normalize movie data to ensure all required fields exist
+        
+        Args:
+            movie: Raw movie dict from IMDB API
+        
+        Returns:
+            Normalized movie dict with all required fields
+        """
+        # Get poster with fallback
+        poster_url = movie.get('poster_url') or movie.get('poster')
+        
+        # Validate poster URL - OMDb sometimes returns "N/A" or invalid URLs
+        if not poster_url or poster_url == 'N/A' or not poster_url.startswith('http'):
+            # Generate fallback poster from IMDb
+            imdb_id = movie.get('imdb_id')
+            if imdb_id:
+                poster_url = f'https://www.imdb.com/title/{imdb_id}/mediaindex'
+            else:
+                poster_url = None
+        
+        return {
+            'id': movie.get('id') or movie.get('imdb_id') or 'unknown',
+            'title': movie.get('title') or 'Unknown Title',
+            'director': movie.get('director') or 'Unknown Director',
+            'year': movie.get('year') or 0,
+            'rating': movie.get('imdb_rating') or 0.0,
+            'runtime': movie.get('runtime') or 'N/A',
+            'genres': movie.get('genre') or [],
+            'plot': movie.get('plot') or '',
+            'poster': poster_url,  # Use 'poster' key for dashboard compatibility
+            'poster_url': poster_url,
+            'url': f'https://www.imdb.com/title/{movie.get("imdb_id")}/' if movie.get('imdb_id') else '#',
+            'imdb_id': movie.get('imdb_id'),
+            'source': 'imdb'
+        }
+
     
     def get_study_plan_content(self, study_plan: str) -> Dict:
         """
@@ -297,6 +365,142 @@ Format the response with clear sections."""
             }
             for i, director in enumerate(directors[:5])
         ]
+    
+    def _get_sample_movies_curated(self) -> List[Dict]:
+        """Curated sample movies - highly rated artistic films"""
+        return [
+            {
+                'id': 'tt0068646',
+                'title': 'The Godfather',
+                'director': 'Francis Ford Coppola',
+                'year': 1972,
+                'rating': 9.2,
+                'genres': ['Crime', 'Drama'],
+                'runtime': '175 min',
+                'plot': 'The aging patriarch of an organized crime dynasty transfers control of his clandestine empire to his reluctant youngest son.',
+                'poster': 'https://m.media-amazon.com/images/M/MV5BM2MyNjYxNmUtYTAwNi00MTMyLWFwM2ItYTIxMWFiZjQ4YjI1XkEyXkFqcGdeQXVyNzkwMjQ5NzM@._V1_SX300.jpg',
+                'url': 'https://www.imdb.com/title/tt0068646/',
+                'source': 'sample'
+            },
+            {
+                'id': 'tt0110912',
+                'title': 'Pulp Fiction',
+                'director': 'Quentin Tarantino',
+                'year': 1994,
+                'rating': 8.9,
+                'genres': ['Crime', 'Drama'],
+                'runtime': '154 min',
+                'plot': 'The lives of two mob hitmen, a boxer, a gangster\'s wife, and a pair of diner bandits intertwine in four tales of violence and redemption.',
+                'poster': 'https://m.media-amazon.com/images/M/MV5BNGNhMDIzZTUtNTBlZi00MTRlLWFjM2ItMDJlM2RlMzA5NTA1XkEyXkFqcGdeQXVyNzkwMjQ5NzM@._V1_SX300.jpg',
+                'url': 'https://www.imdb.com/title/tt0110912/',
+                'source': 'sample'
+            },
+            {
+                'id': 'tt0816692',
+                'title': 'Inception',
+                'director': 'Christopher Nolan',
+                'year': 2010,
+                'rating': 8.8,
+                'genres': ['Action', 'Sci-Fi', 'Thriller'],
+                'runtime': '148 min',
+                'plot': 'A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.',
+                'poster': 'https://m.media-amazon.com/images/M/MV5BMjAxMzY3NjcxNF5BMl5BanBnXkFtZTcwNTI5OTM0Mw@@._V1_SX300.jpg',
+                'url': 'https://www.imdb.com/title/tt0816692/',
+                'source': 'sample'
+            },
+            {
+                'id': 'tt0111161',
+                'title': 'The Shawshank Redemption',
+                'director': 'Frank Darabont',
+                'year': 1994,
+                'rating': 9.3,
+                'genres': ['Drama'],
+                'runtime': '142 min',
+                'plot': 'Two imprisoned men bond over a number of years, finding solace and eventual redemption through acts of common decency.',
+                'poster': 'https://m.media-amazon.com/images/M/MV5BMDFlYTAwYjktMDJjMC00MjgyLWJmNDctNTI5OTQ0YzZjMDk1XkEyXkFqcGdeQXVyMTMxODk2OTU@._V1_SX300.jpg',
+                'url': 'https://www.imdb.com/title/tt0111161/',
+                'source': 'sample'
+            },
+            {
+                'id': 'tt0133093',
+                'title': 'The Matrix',
+                'director': 'Lana Wachowski, Lilly Wachowski',
+                'year': 1999,
+                'rating': 8.7,
+                'genres': ['Action', 'Sci-Fi'],
+                'runtime': '136 min',
+                'plot': 'A computer programmer discovers that reality as he knows it is a simulation created by machines.',
+                'poster': 'https://m.media-amazon.com/images/M/MV5BNzQzOTk3OTAtNDQ0Zi00ZTVkLWI0MTEtMDl2ODA4NjU2NjE4XkEyXkFqcGdeQXVyNzkwMjQ5NzM@._V1_SX300.jpg',
+                'url': 'https://www.imdb.com/title/tt0133093/',
+                'source': 'sample'
+            },
+            {
+                'id': 'tt0468569',
+                'title': 'The Dark Knight',
+                'director': 'Christopher Nolan',
+                'year': 2008,
+                'rating': 9.0,
+                'genres': ['Action', 'Crime', 'Drama'],
+                'runtime': '152 min',
+                'plot': 'When the menace known as the Joker wreaks havoc and chaos on Gotham, Batman must accept one of the greatest psychological challenges.',
+                'poster': 'https://m.media-amazon.com/images/M/MV5BMTk4ODQzNDY3Ml5BMl5BanBnXkFtZTcwODA0NTM4Nw@@._V1_SX300.jpg',
+                'url': 'https://www.imdb.com/title/tt0468569/',
+                'source': 'sample'
+            },
+            {
+                'id': 'tt1345836',
+                'title': 'The Dark Knight Rises',
+                'director': 'Christopher Nolan',
+                'year': 2012,
+                'rating': 8.4,
+                'genres': ['Action', 'Adventure', 'Crime'],
+                'runtime': '164 min',
+                'plot': 'Eight years after the Joker\'s reign of anarchy, Batman must face a new threat that brings Gotham to the brink of destruction.',
+                'poster': 'https://m.media-amazon.com/images/M/MV5BNjc1RjU0YzEtMjE2MC00ZDZlLTljN2QtNzAxNTI5MDA1MzA1XkEyXkFqcGdeQXVyMTMxODk2OTU@._V1_SX300.jpg',
+                'url': 'https://www.imdb.com/title/tt1345836/',
+                'source': 'sample'
+            },
+            {
+                'id': 'tt0482571',
+                'title': 'The Prestige',
+                'director': 'Christopher Nolan',
+                'year': 2006,
+                'rating': 8.5,
+                'genres': ['Drama', 'Mystery', 'Sci-Fi'],
+                'runtime': '130 min',
+                'plot': 'After a tragic accident, two stage magicians engage in battle to create the ultimate illusion while sacrificing everything to outwit each other.',
+                'poster': 'https://m.media-amazon.com/images/M/MV5BMTU1MzAwMjA5MF5BMl5BanBnXkFtZTcwMDU3NDk1Mw@@._V1_SX300.jpg',
+                'url': 'https://www.imdb.com/title/tt0482571/',
+                'source': 'sample'
+            },
+            {
+                'id': 'tt0816692',
+                'title': 'Interstellar',
+                'director': 'Christopher Nolan',
+                'year': 2014,
+                'rating': 8.6,
+                'genres': ['Adventure', 'Drama', 'Sci-Fi'],
+                'runtime': '169 min',
+                'plot': 'A team of explorers travel through a wormhole in space in an attempt to ensure humanity\'s survival.',
+                'poster': 'https://m.media-amazon.com/images/M/MV5BZjdkOTU3MDctMzg5Ni00NGE4LWJmNDQtZjA4MDI3NzYzODMyXkEyXkFqcGdeQXVyMzQ0MjM5NzM@._V1_SX300.jpg',
+                'url': 'https://www.imdb.com/title/tt0816692/',
+                'source': 'sample'
+            },
+            {
+                'id': 'tt1375666',
+                'title': 'Tenet',
+                'director': 'Christopher Nolan',
+                'year': 2020,
+                'rating': 7.4,
+                'genres': ['Action', 'Sci-Fi', 'Thriller'],
+                'runtime': '150 min',
+                'plot': 'Armed with only one word, Tenet, and fighting for the survival of the entire world, a Protagonist journeys through a twilight world of international espionage.',
+                'poster': 'https://m.media-amazon.com/images/M/MV5BMDZkYmVkNDctY2NlNS00NTk0LWFlMDAtYzAxZDQyZGEwZWZhXkEyXkFqcGdeQXVyMzg0MjcwOTg@._V1_SX300.jpg',
+                'url': 'https://www.imdb.com/title/tt1375666/',
+                'source': 'sample'
+            }
+        ]
+
     
     def _generate_study_content_fallback(self, study_plan: str) -> Dict:
         """Fallback content generation without Perplexity"""

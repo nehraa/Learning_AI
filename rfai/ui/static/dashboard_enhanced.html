@@ -670,13 +670,36 @@
                 const response = await fetch(`${API_BASE}/fetch/current-block-content`);
                 const data = await response.json();
                 
-                if (!data.active) {
-                    document.getElementById('content-card').style.display = 'none';
-                    return;
+                // If no active block, fetch recommendations from all blocks
+                let content = data.content;
+                if (!data.active || !content) {
+                    try {
+                        // Fetch all available content since no specific block is active
+                        const youtubeRes = await fetch(`${API_BASE}/content/youtube-recommendations`);
+                        const videosData = await youtubeRes.json();
+                        const youtubeVideos = videosData.videos || [];
+                        
+                        const papersRes = await fetch(`${API_BASE}/content/paper-recommendations`);
+                        const papersData = await papersRes.json();
+                        const papers = papersData.research_papers || papersData.papers || [];
+                        
+                        const moviesRes = await fetch(`${API_BASE}/content/movie-recommendations`);
+                        const moviesData = await moviesRes.json();
+                        const movies = moviesData.movies || [];
+                        
+                        content = {
+                            youtube_videos: youtubeVideos,
+                            research_papers: papers,
+                            movies: movies
+                        };
+                    } catch (e) {
+                        console.warn('Could not fetch all content:', e);
+                        if (!data.active) {
+                            document.getElementById('content-card').style.display = 'none';
+                            return;
+                        }
+                    }
                 }
-                
-                let contentHtml = '';
-                const content = data.content;
                 
                 // Display YouTube videos
                 if (content.youtube_videos && content.youtube_videos.length > 0) {
@@ -735,14 +758,23 @@
                     `;
                     
                     content.movies.forEach(movie => {
+                        // Handle both 'poster' and 'poster_url' field names
+                        const posterUrl = movie.poster || movie.poster_url || '';
+                        const title = movie.title || 'Unknown Title';
+                        const director = movie.director || 'Unknown';
+                        const year = movie.year || 'N/A';
+                        const rating = movie.rating !== undefined ? movie.rating.toFixed(1) : 'N/A';
+                        const runtime = movie.runtime || 'N/A';
+                        const url = movie.url || '#';
+                        
                         contentHtml += `
                             <div style="border: 1px solid #ddd; border-radius: 8px; padding: 12px; background: #f9f9f9;">
-                                <a href="${movie.url}" target="_blank" style="text-decoration: none; color: #333;">
-                                    <img src="${movie.poster}" style="width: 100%; border-radius: 4px; margin-bottom: 8px;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22300%22%3E%3Crect fill=%22%23ddd%22 width=%22200%22 height=%22300%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22%3EMovie%3C/text%3E%3C/svg%3E'">
-                                    <div style="font-weight: 600; margin-bottom: 5px;">${movie.title}</div>
-                                    <div style="color: #666; font-size: 0.9em; margin-bottom: 4px;">${movie.director}</div>
-                                    <div style="color: #999; font-size: 0.85em;">${movie.year} • ⭐ ${movie.rating}</div>
-                                    <div style="color: #777; font-size: 0.8em; margin-top: 4px;">${movie.runtime}</div>
+                                <a href="${url}" target="_blank" style="text-decoration: none; color: #333;">
+                                    <img src="${posterUrl}" style="width: 100%; border-radius: 4px; margin-bottom: 8px; min-height: 300px; object-fit: cover;" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22200%22 height=%22300%22%3E%3Crect fill=%23ddd%22 width=%22200%22 height=%22300%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2214%22%3E${title}%3C/text%3E%3C/svg%3E'">
+                                    <div style="font-weight: 600; margin-bottom: 5px;">${title}</div>
+                                    <div style="color: #666; font-size: 0.9em; margin-bottom: 4px;">${director}</div>
+                                    <div style="color: #999; font-size: 0.85em;">${year} • ⭐ ${rating}</div>
+                                    <div style="color: #777; font-size: 0.8em; margin-top: 4px;">${runtime}</div>
                                 </a>
                             </div>
                         `;

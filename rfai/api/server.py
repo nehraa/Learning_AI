@@ -958,28 +958,84 @@ def create_app():
     
     @app.route('/api/content/youtube-recommendations', methods=['GET'])
     def get_youtube_recommendations():
-        """Get YouTube video recommendations for current block"""
+        """Get YouTube video recommendations"""
         try:
+            # Get recommendations from time block manager (includes all blocks)
             content = app.time_block_manager.get_youtube_content()
-            return jsonify(content)
+            
+            # If it's not from a specific block, fetch actual videos
+            if 'All Blocks' in content.get('block', '') or not app.time_block_manager.current_block:
+                videos = app.content_fetcher.fetch_science_youtube(max_results=5)
+                videos.extend(app.content_fetcher.fetch_self_help_youtube(max_results=5))
+                
+                return jsonify({
+                    'videos': videos,
+                    'count': len(videos),
+                    'source': 'youtube'
+                })
+            
+            # Otherwise try to fetch actual videos for this block
+            videos = []
+            block_type = content.get('type', '')
+            if 'science' in block_type.lower():
+                videos = app.content_fetcher.fetch_science_youtube(max_results=10)
+            elif 'self_help' in block_type.lower():
+                videos = app.content_fetcher.fetch_self_help_youtube(max_results=10)
+            else:
+                videos = app.content_fetcher.fetch_science_youtube(max_results=5)
+                videos.extend(app.content_fetcher.fetch_self_help_youtube(max_results=5))
+            
+            return jsonify({
+                'videos': videos,
+                'count': len(videos),
+                'source': 'youtube',
+                'block': content.get('block')
+            })
         except Exception as e:
             logger.error(f"Error getting YouTube recommendations: {e}")
             return jsonify({'error': str(e)}), 500
-    
     @app.route('/api/content/movie-recommendations', methods=['GET'])
     def get_movie_recommendations():
         """Get movie recommendations for cinema block"""
         try:
-            content = app.time_block_manager.get_movie_content()
-            return jsonify(content)
+            # Try to fetch actual movie data
+            movies = app.content_fetcher.fetch_movies(max_results=10)
+            
+            # If no movies from fetcher, get from content manager
+            if not movies:
+                content = app.time_block_manager.get_movie_content()
+                return jsonify(content)
+            
+            return jsonify({
+                'movies': movies,
+                'count': len(movies),
+                'source': 'imdb'
+            })
         except Exception as e:
             logger.error(f"Error getting movie recommendations: {e}")
-            return jsonify({'error': str(e)}), 500
+            # Fallback to sample data
+            return jsonify({
+                'movies': app.content_fetcher._get_sample_movies_curated(),
+                'count': 10,
+                'source': 'sample'
+            })
     
     @app.route('/api/content/paper-recommendations', methods=['GET'])
     def get_paper_recommendations():
         """Get research paper recommendations"""
         try:
+            # Try to fetch actual papers
+            papers = app.content_fetcher.fetch_research_papers(max_results=10)
+            
+            if papers:
+                return jsonify({
+                    'papers': papers,
+                    'research_papers': papers,
+                    'count': len(papers),
+                    'source': 'arxiv'
+                })
+            
+            # Fallback to content manager
             content = app.time_block_manager.get_papers_content()
             return jsonify(content)
         except Exception as e:

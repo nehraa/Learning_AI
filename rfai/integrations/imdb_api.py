@@ -406,6 +406,43 @@ class IMDBDiscovery:
         logger.info(f"Found {len(all_films)} artistic films")
         return all_films[:max_results]
     
+    def search_by_director(self, director: str, min_rating: float = 7.0,
+                          max_results: int = 10) -> List[Dict]:
+        """
+        Search for movies by a specific director
+        
+        Args:
+            director: Director name
+            min_rating: Minimum IMDB rating
+            max_results: Max results to return
+        
+        Returns:
+            List of movies by director, sorted by rating
+        """
+        try:
+            # Search for the director's name
+            movies = self.search_movies(director)
+            
+            if not movies:
+                logger.warning(f"No movies found for director: {director}")
+                return []
+            
+            # Filter to high-rated films
+            filtered = [
+                m for m in movies
+                if m.get('imdb_rating', 0) >= min_rating
+            ]
+            
+            # Sort by rating descending
+            filtered.sort(key=lambda x: x.get('imdb_rating', 0), reverse=True)
+            
+            logger.info(f"Found {len(filtered)} movies by {director} with rating >= {min_rating}")
+            return filtered[:max_results]
+        
+        except Exception as e:
+            logger.error(f"Error searching for director {director}: {e}")
+            return []
+    
     def _calculate_artistic_score(self, movie: Dict) -> float:
         """Calculate artistic merit score for ranking"""
         score = 0.0
