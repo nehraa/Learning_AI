@@ -184,6 +184,97 @@ class YouTubeDiscovery:
         # Default to intermediate
         return 'intermediate'
     
+    def classify_content_type(self, snippet: Dict, details: Dict) -> str:
+        """
+        Classify video as educational, entertainment, or learning-borderline
+        
+        Returns:
+            'educational' - Pure learning content
+            'learning_borderline' - Educational entertainment (animated history, philosophy, etc.)
+            'entertainment' - Pure entertainment
+        """
+        title = snippet.get('title', '').lower()
+        desc = snippet.get('description', '').lower()
+        channel = snippet.get('channelTitle', '').lower()
+        
+        # Educational channels and keywords
+        educational_channels = [
+            '3blue1brown', 'mit opencourseware', 'khan academy', 'crash course',
+            'veritasium', 'minutephysics', 'numberphile', 'computerphile'
+        ]
+        educational_keywords = [
+            'lecture', 'course', 'tutorial', 'explained', 'how to', 'learn',
+            'introduction to', 'fundamentals', 'theory', 'proof', 'derivation'
+        ]
+        
+        # Learning-borderline entertainment (what user wants)
+        borderline_keywords = [
+            'animated history', 'philosophy', 'self-help', 'self help',
+            'psychology', 'cognitive', 'motivation', 'productivity',
+            'science explained', 'kurzgesagt', 'vsauce', 'ted-ed', 'ted ed'
+        ]
+        
+        # Pure entertainment (exclude these)
+        entertainment_keywords = [
+            'vlog', 'reaction', 'gaming', 'gameplay', 'lets play', "let's play",
+            'funny', 'compilation', 'prank', 'challenge', 'mukbang',
+            'unboxing', 'haul', 'makeup', 'fashion'
+        ]
+        
+        # Check for pure entertainment first (exclude)
+        if any(kw in title or kw in desc or kw in channel for kw in entertainment_keywords):
+            return 'entertainment'
+        
+        # Check for learning-borderline content
+        if any(kw in title or kw in desc or kw in channel for kw in borderline_keywords):
+            return 'learning_borderline'
+        
+        # Check for pure educational
+        if (any(ch in channel for ch in educational_channels) or
+            any(kw in title or kw in desc for kw in educational_keywords)):
+            return 'educational'
+        
+        # Default to entertainment if unclear
+        return 'entertainment'
+    
+    def search_educational_videos(self, query: str, max_results: int = 10,
+                                  include_borderline: bool = True) -> List[Dict]:
+        """
+        Search for educational videos with filtering
+        
+        Args:
+            query: Search query
+            max_results: Max videos to return
+            include_borderline: Include learning-borderline entertainment
+        
+        Returns:
+            Filtered list of educational videos
+        """
+        # Search for more videos than needed to allow filtering
+        all_videos = self.search_videos(query, max_results=max_results * 2)
+        
+        filtered_videos = []
+        for video in all_videos:
+            content_type = self.classify_content_type(
+                {'title': video['title'], 
+                 'description': video['description'],
+                 'channelTitle': video['channel']},
+                {}
+            )
+            
+            # Add content type to video metadata
+            video['content_type'] = content_type
+            
+            # Filter based on preferences
+            if content_type == 'educational':
+                filtered_videos.append(video)
+            elif content_type == 'learning_borderline' and include_borderline:
+                filtered_videos.append(video)
+            # Skip pure entertainment
+        
+        logger.info(f"Filtered to {len(filtered_videos)} educational videos from {len(all_videos)} total")
+        return filtered_videos[:max_results]
+    
     def search_by_topic(self, topic: str, subtopics: List[str] = None,
                        max_per_topic: int = 5) -> List[Dict]:
         """

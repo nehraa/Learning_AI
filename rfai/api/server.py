@@ -59,6 +59,7 @@ def create_app():
     app.content_digester = ContentDigestAI()
     app.srs_engine = None  # Initialized on demand
     app.schedule_optimizer = None  # Initialized on demand
+    app.content_scheduler = None  # Initialized on demand
     
     logger.info("RFAI API Server initialized")
 
@@ -66,6 +67,12 @@ def create_app():
     def home():
         """Serve the RFAI dashboard"""
         try:
+            # Try enhanced dashboard first
+            enhanced_path = Path(__file__).parent.parent / 'ui' / 'static' / 'dashboard_enhanced.html'
+            if enhanced_path.exists():
+                return enhanced_path.read_text(encoding='utf-8')
+            
+            # Fallback to original dashboard
             dashboard_path = Path(__file__).parent.parent / 'ui' / 'static' / 'index.html'
             if dashboard_path.exists():
                 return dashboard_path.read_text(encoding='utf-8')
@@ -77,12 +84,26 @@ def create_app():
                     "<li><a href='/health'>/health</a></li>"
                     "<li><a href='/api/status'>/api/status</a></li>"
                     "<li><a href='/api/plans'>/api/plans</a></li>"
+                    "<li><a href='/api/schedule/daily'>/api/schedule/daily</a></li>"
                     "</ul>",
                     200,
                     {'Content-Type': 'text/html; charset=utf-8'},
                 )
         except Exception as e:
             logger.error(f"Error serving dashboard: {e}")
+            return jsonify({'error': 'Dashboard unavailable'}), 500
+    
+    @app.route('/dashboard', methods=['GET'])
+    def dashboard_enhanced():
+        """Serve the enhanced 3-hour plan dashboard"""
+        try:
+            dashboard_path = Path(__file__).parent.parent / 'ui' / 'static' / 'dashboard_enhanced.html'
+            if dashboard_path.exists():
+                return dashboard_path.read_text(encoding='utf-8')
+            else:
+                return jsonify({'error': 'Enhanced dashboard not found'}), 404
+        except Exception as e:
+            logger.error(f"Error serving enhanced dashboard: {e}")
             return jsonify({'error': 'Dashboard unavailable'}), 500
     
     # ============================================================================
@@ -626,6 +647,217 @@ def create_app():
             
         except Exception as e:
             logger.error(f"Error discovering content: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    # ============================================================================
+    # CONTENT SCHEDULER ENDPOINTS (3-HOUR DAILY PLAN)
+    # ============================================================================
+    
+    @app.route('/api/schedule/daily', methods=['GET'])
+    def get_daily_schedule():
+        """Get today's content schedule (3-hour plan)"""
+        try:
+            if app.content_scheduler is None:
+                from rfai.ai.content_scheduler import ContentScheduler
+                app.content_scheduler = ContentScheduler()
+            
+            schedule = app.content_scheduler.generate_daily_schedule()
+            
+            return jsonify({
+                'success': True,
+                'schedule': schedule,
+                'summary': app.content_scheduler.get_schedule_summary(schedule)
+            })
+            
+        except Exception as e:
+            logger.error(f"Error getting daily schedule: {e}")
+            return jsonify({
+                'error': str(e),
+                'note': 'Ensure interests.json and daily_3hr_plan.md are configured'
+            }), 500
+    
+    @app.route('/api/schedule/current-block', methods=['GET'])
+    def get_current_block():
+        """Get the current content block based on time of day"""
+        try:
+            if app.content_scheduler is None:
+                from rfai.ai.content_scheduler import ContentScheduler
+                app.content_scheduler = ContentScheduler()
+            
+            schedule = app.content_scheduler.generate_daily_schedule()
+            current_block = app.content_scheduler.get_current_block(schedule)
+            
+            if current_block:
+                return jsonify({
+                    'success': True,
+                    'current_block': current_block,
+                    'message': f"Currently in {current_block['type']} block"
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'No active content block at this time'
+                })
+            
+        except Exception as e:
+            logger.error(f"Error getting current block: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/content/rate', methods=['POST'])
+    def rate_content():
+        """Rate a piece of content"""
+        try:
+            data = request.json
+            content_id = data.get('content_id')
+            rating = data.get('rating')  # 1-5
+            tags = data.get('tags', [])
+            time_spent = data.get('time_spent_seconds', 0)
+            
+            if not content_id or not rating:
+                return jsonify({'error': 'content_id and rating required'}), 400
+            
+            conn = get_db_connection(app.config['RFAI_DB_PATH'])
+            cursor = conn.cursor()
+            
+            rating_id = str(uuid.uuid4())
+            
+            cursor.execute("""
+                INSERT INTO ratings (
+                    id, content_id, rating, tags, time_spent_seconds, timestamp
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                rating_id,
+                content_id,
+                rating,
+                json.dumps(tags),
+                time_spent,
+                datetime.now().isoformat()
+            ))
+            
+            conn.commit()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'rating_id': rating_id,
+                'message': 'Rating saved successfully'
+            })
+            
+        except Exception as e:
+            logger.error(f"Error rating content: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/movie/post-review', methods=['POST'])
+    def submit_movie_review():
+        """Submit post-movie review"""
+        try:
+            data = request.json
+            movie_id = data.get('movie_id')
+            answers = data.get('answers', {})
+            
+            if not movie_id:
+                return jsonify({'error': 'movie_id required'}), 400
+            
+            # Store review as a special rating with review data
+            conn = get_db_connection(app.config['RFAI_DB_PATH'])
+            cursor = conn.cursor()
+            
+            rating_id = str(uuid.uuid4())
+            
+            cursor.execute("""
+                INSERT INTO ratings (
+                    id, content_id, rating, tags, context, timestamp
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            """, (
+                rating_id,
+                movie_id,
+                5,  # Assumed completion rating
+                json.dumps(['movie_review', 'post_viewing']),
+                json.dumps({'review_answers': answers}),
+                datetime.now().isoformat()
+            ))
+            
+            conn.commit()
+            conn.close()
+            
+            return jsonify({
+                'success': True,
+                'review_id': rating_id,
+                'message': 'Movie review submitted successfully'
+            })
+            
+        except Exception as e:
+            logger.error(f"Error submitting movie review: {e}")
+            return jsonify({'error': str(e)}), 500
+    
+    @app.route('/api/stats/daily', methods=['GET'])
+    def get_daily_stats():
+        """Get daily statistics for dashboard"""
+        try:
+            conn = get_db_connection(app.config['RFAI_DB_PATH'])
+            cursor = conn.cursor()
+            
+            today = datetime.now().date()
+            
+            # Get time logs
+            cursor.execute("""
+                SELECT focus_state, SUM(duration_seconds) as total_seconds
+                FROM time_logs
+                WHERE DATE(timestamp) = ?
+                GROUP BY focus_state
+            """, (today,))
+            
+            focus_breakdown = {row['focus_state']: row['total_seconds'] for row in cursor.fetchall()}
+            
+            # Get learning plan progress
+            cursor.execute("""
+                SELECT daily_time_hours, current_week, current_day
+                FROM learning_plans
+                WHERE status = 'active'
+                ORDER BY created_at DESC
+                LIMIT 1
+            """)
+            
+            plan_row = cursor.fetchone()
+            target_hours = plan_row['daily_time_hours'] if plan_row else 3.0
+            current_week = plan_row['current_week'] if plan_row else 1
+            current_day = plan_row['current_day'] if plan_row else 1
+            
+            # Calculate actual hours today
+            total_seconds = sum(focus_breakdown.values())
+            actual_hours = total_seconds / 3600.0
+            
+            # Get content ratings today
+            cursor.execute("""
+                SELECT content_id, rating
+                FROM ratings
+                WHERE DATE(timestamp) = ?
+            """, (today,))
+            
+            ratings_today = [dict(row) for row in cursor.fetchall()]
+            
+            conn.close()
+            
+            return jsonify({
+                'date': str(today),
+                'learning_plan': {
+                    'target_hours': target_hours,
+                    'actual_hours': round(actual_hours, 2),
+                    'completion_percent': round((actual_hours / target_hours) * 100, 1) if target_hours > 0 else 0,
+                    'current_week': current_week,
+                    'current_day': current_day
+                },
+                'focus_breakdown': focus_breakdown,
+                'ratings_count': len(ratings_today),
+                'time_allocation': {
+                    'youtube': round(focus_breakdown.get('YOUTUBE', 0) / 3600, 2),
+                    'papers': round(focus_breakdown.get('PAPERS', 0) / 3600, 2),
+                    'movies': round(focus_breakdown.get('MOVIES', 0) / 3600, 2)
+                }
+            })
+            
+        except Exception as e:
+            logger.error(f"Error getting daily stats: {e}")
             return jsonify({'error': str(e)}), 500
     
     # ============================================================================

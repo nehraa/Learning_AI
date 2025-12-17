@@ -271,6 +271,212 @@ class IMDBDiscovery:
             score += 10
         
         return score
+    
+    def classify_artistic_merit(self, movie: Dict) -> str:
+        """
+        Classify movie as artistic/film-school worthy vs generic entertainment
+        
+        Returns:
+            'artistic' - Film school quality, artistic merit
+            'good_generic' - Well-rated but generic/commercial
+            'entertainment' - Pure entertainment
+        """
+        title = movie.get('title', '').lower()
+        plot = movie.get('plot', '').lower()
+        director = movie.get('director', '').lower()
+        genre = movie.get('genre', [])
+        awards = movie.get('awards', '')
+        rating = movie.get('imdb_rating', 0)
+        
+        # Prestigious/artistic directors
+        artistic_directors = [
+            'andrei tarkovsky', 'ingmar bergman', 'akira kurosawa', 'stanley kubrick',
+            'terrence malick', 'wong kar-wai', 'federico fellini', 'jean-luc godard',
+            'francois truffaut', 'yasujiro ozu', 'krzysztof kieslowski', 'david lynch',
+            'wes anderson', 'paul thomas anderson', 'christopher nolan', 'denis villeneuve',
+            'alfonso cuaron', 'alejandro iñárritu', 'park chan-wook', 'bong joon-ho'
+        ]
+        
+        # Artistic genres
+        artistic_genres = [
+            'Drama', 'Mystery', 'Thriller', 'War', 'Biography', 'History'
+        ]
+        
+        # Generic/commercial genres (lower artistic merit typically)
+        commercial_genres = [
+            'Action', 'Comedy', 'Romance', 'Horror', 'Fantasy'
+        ]
+        
+        # Check for prestigious awards
+        has_major_awards = any(award in awards for award in [
+            'Oscar', 'Academy Award', 'Golden Globe', 'Cannes', 'Venice', 
+            'Berlin', 'Palme', 'Golden Lion', 'Golden Bear'
+        ])
+        
+        # Check for artistic director
+        is_artistic_director = any(dir in director for dir in artistic_directors)
+        
+        # Check for foreign/art house indicators
+        is_foreign = movie.get('country', '') not in ['USA', 'United States', 'UK', 'United Kingdom']
+        
+        # Calculate artistic score
+        artistic_score = 0
+        
+        if is_artistic_director:
+            artistic_score += 50
+        
+        if has_major_awards:
+            artistic_score += 30
+        
+        if is_foreign:
+            artistic_score += 20
+        
+        # Genre scoring
+        for g in genre:
+            if g in artistic_genres:
+                artistic_score += 10
+            elif g in commercial_genres:
+                artistic_score -= 10
+        
+        # High critical acclaim but not blockbuster
+        metascore = movie.get('metascore')
+        if metascore and metascore != 'N/A':
+            try:
+                if int(metascore) >= 80:
+                    artistic_score += 20
+            except:
+                pass
+        
+        # Classify based on score
+        if artistic_score >= 50:
+            return 'artistic'
+        elif rating >= 7.5 and artistic_score >= 20:
+            return 'artistic'
+        elif rating >= 7.0:
+            return 'good_generic'
+        else:
+            return 'entertainment'
+    
+    def search_artistic_films(self, query: str = None, max_results: int = 10,
+                             min_rating: float = 7.0) -> List[Dict]:
+        """
+        Search for artistic/film-school worthy movies
+        
+        Args:
+            query: Search query (optional)
+            max_results: Max films to return
+            min_rating: Minimum IMDB rating
+        
+        Returns:
+            List of artistic films with classification
+        """
+        # If no query, use curated list of artistic films
+        if not query:
+            queries = [
+                'tarkovsky', 'bergman', 'kurosawa', 'fellini',
+                'criterion collection', 'foreign cinema', 'art house'
+            ]
+        else:
+            queries = [query]
+        
+        all_films = []
+        seen_ids = set()
+        
+        for q in queries:
+            movies = self.search_movies(q)
+            
+            for movie in movies:
+                imdb_id = movie.get('imdb_id')
+                if imdb_id not in seen_ids:
+                    seen_ids.add(imdb_id)
+                    
+                    # Classify artistic merit
+                    movie['artistic_classification'] = self.classify_artistic_merit(movie)
+                    movie['artistic_score'] = self._calculate_artistic_score(movie)
+                    
+                    # Only include artistic or good_generic with high rating
+                    if (movie['artistic_classification'] == 'artistic' or
+                        (movie['artistic_classification'] == 'good_generic' and 
+                         movie.get('imdb_rating', 0) >= min_rating)):
+                        all_films.append(movie)
+        
+        # Sort by artistic score
+        all_films.sort(key=lambda x: x.get('artistic_score', 0), reverse=True)
+        
+        logger.info(f"Found {len(all_films)} artistic films")
+        return all_films[:max_results]
+    
+    def _calculate_artistic_score(self, movie: Dict) -> float:
+        """Calculate artistic merit score for ranking"""
+        score = 0.0
+        
+        # Base rating (max 100 points)
+        score += movie.get('imdb_rating', 0) * 10
+        
+        # Metascore bonus
+        metascore = movie.get('metascore')
+        if metascore and metascore != 'N/A':
+            try:
+                score += int(metascore) * 0.5
+            except:
+                pass
+        
+        # Awards (max 50 points)
+        awards = movie.get('awards', '').lower()
+        if 'oscar' in awards or 'academy award' in awards:
+            score += 30
+        if 'cannes' in awards or 'palme' in awards:
+            score += 25
+        if 'venice' in awards or 'golden lion' in awards:
+            score += 20
+        if 'golden globe' in awards:
+            score += 15
+        
+        # Classification bonus
+        classification = movie.get('artistic_classification', 'entertainment')
+        if classification == 'artistic':
+            score += 40
+        elif classification == 'good_generic':
+            score += 10
+        
+        return score
+    
+    def recommend_for_study(self, focus_area: str = 'cinematography',
+                           max_results: int = 5) -> List[Dict]:
+        """
+        Recommend films for study (cinematography, narrative, etc.)
+        
+        Args:
+            focus_area: What to study ('cinematography', 'narrative', 'experimental')
+            max_results: Max films to return
+        
+        Returns:
+            List of films recommended for study
+        """
+        focus_queries = {
+            'cinematography': ['deakins', 'lubezki', 'visual', 'cinematography'],
+            'narrative': ['kubrick', 'nolan', 'complex narrative', 'non-linear'],
+            'experimental': ['lynch', 'tarkovsky', 'experimental', 'avant-garde'],
+            'character': ['character study', 'method acting', 'performance'],
+            'editing': ['editing', 'montage', 'rhythm']
+        }
+        
+        queries = focus_queries.get(focus_area, ['film school', 'essential cinema'])
+        
+        recommendations = []
+        for query in queries:
+            films = self.search_artistic_films(query, max_results=2)
+            recommendations.extend(films)
+        
+        # Remove duplicates
+        seen = set()
+        unique = []
+        for film in recommendations:
+            if film['imdb_id'] not in seen:
+                seen.add(film['imdb_id'])
+                unique.append(film)
+        
+        return unique[:max_results]
 
 
 if __name__ == "__main__":

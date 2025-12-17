@@ -107,6 +107,10 @@ def load_env(override: bool = False) -> Dict[str, str]:
     """
     env_path = _find_dotenv()
     if not env_path:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning("No .env file found. Create one from .env.example for API key configuration.")
+        logger.info("Looking for .env in: current directory or project root")
         return {}
 
     try:
@@ -145,3 +149,60 @@ def load_env(override: bool = False) -> Dict[str, str]:
             _set(mapped2, value)
 
     return set_vars
+
+
+def validate_api_keys(required_keys: list = None) -> Dict[str, bool]:
+    """
+    Validate that required API keys are present
+    
+    Args:
+        required_keys: List of required key names (e.g., ['YOUTUBE_API_KEY'])
+                      If None, checks all common keys
+    
+    Returns:
+        Dict mapping key name to whether it's present and valid
+    """
+    if required_keys is None:
+        required_keys = [
+            'YOUTUBE_API_KEY',
+            'PERPLEXITY_API_KEY',
+            'NOTION_API_KEY',
+            'OMDB_API_KEY'
+        ]
+    
+    status = {}
+    for key in required_keys:
+        value = os.environ.get(key, '').strip()
+        # Check if key exists and is not a placeholder
+        is_valid = bool(value) and not value.startswith('your_') and value != 'None'
+        status[key] = is_valid
+    
+    return status
+
+
+def print_api_key_status():
+    """Print helpful status message about API key configuration"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    status = validate_api_keys()
+    
+    missing_keys = [k for k, v in status.items() if not v]
+    present_keys = [k for k, v in status.items() if v]
+    
+    if present_keys:
+        logger.info(f"✅ Configured API keys: {', '.join(present_keys)}")
+    
+    if missing_keys:
+        logger.warning(f"⚠️  Missing API keys: {', '.join(missing_keys)}")
+        logger.info("Create a .env file from .env.example and add your API keys")
+        logger.info("Get keys from:")
+        for key in missing_keys:
+            if 'YOUTUBE' in key:
+                logger.info("  - YouTube: https://console.cloud.google.com/apis/credentials")
+            elif 'PERPLEXITY' in key:
+                logger.info("  - Perplexity: https://www.perplexity.ai/settings/api")
+            elif 'NOTION' in key:
+                logger.info("  - Notion: https://www.notion.so/my-integrations")
+            elif 'OMDB' in key:
+                logger.info("  - OMDb/IMDb: https://www.omdbapi.com/apikey.aspx")
